@@ -1,0 +1,101 @@
+# OpenTelemetry Collector (contrib) — sits between the app and the LGTM stack.
+#
+#   app  --OTLP/http-->  otel-collector  --OTLP/grpc-->  lgtm (Tempo/Loki/Prometheus)
+#
+# Everything the app emits now flows through here, so filtering, redaction, and
+# sampling happen centrally rather than in app code. This is the payoff of a
+# dedicated collector over the one embedded in the otel-lgtm image.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Guards the collector against OOM under a telemetry spike. Must be first.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+
+  # Batches exports for efficiency. Must be last.
+  batch:
+    # Short timeout for local dev so telemetry appears quickly. Raise in a real
+    # environment where throughput matters more than latency.
+    timeout: 1s
+    send_batch_size: 1024
+
+  # Central body redaction via OTTL. The `redaction` processor only masks a
+  # value that fully matches; a body is a whole JSON string, so use
+  # replace_pattern to mask the matching SUBSTRING (a 13-19 digit run — card /
+  # account numbers) inside the request/response bodies pino-http logs as
+  # nested req.body / res.body. Redaction done once, in the pipeline, rather
+  # than in every service.
+  transform/redact:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          # Inbound bodies pino-http logs nested under req/res.
+          - replace_pattern(attributes["req"]["body"], "[0-9]{13,19}", "[REDACTED-NUMBER]")
+          - replace_pattern(attributes["res"]["body"], "[0-9]{13,19}", "[REDACTED-NUMBER]")
+          # Outbound bodies HttpClientLogger logs as flat attributes.
+          - replace_pattern(attributes["client_req_body"], "[0-9]{13,19}", "[REDACTED-NUMBER]")
+          - replace_pattern(attributes["client_res_body"], "[0-9]{13,19}", "[REDACTED-NUMBER]")
+
+  # Proof the collector is in the path: stamp a marker resource attribute on
+  # every trace, visible in Tempo.
+  transform/mark:
+    error_mode: ignore
+    trace_statements:
+      - context: resource
+        statements:
+          - set(attributes["otelcol.processed"], "true")
+
+  # Tail sampling — decide per trace once it is complete. Keeps every errored
+  # or slow trace; the rest is sampled. Left at 100% so nothing is dropped in
+  # local dev — lower `sampling_percentage` to actually sample in a real env.
+  tail_sampling:
+    # How long to hold a trace before deciding. This is pure latency before a
+    # trace reaches Tempo, so keep it short in dev.
+    decision_wait: 2s
+    policies:
+      - name: keep-errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      - name: keep-slow
+        type: latency
+        latency:
+          threshold_ms: 400
+      - name: sample-the-rest
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 100
+
+exporters:
+  otlp/lgtm:
+    endpoint: lgtm:4317
+    tls:
+      insecure: true
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, tail_sampling, transform/mark, batch]
+      exporters: [otlp/lgtm]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/lgtm]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/redact, batch]
+      exporters: [otlp/lgtm]

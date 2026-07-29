@@ -1,0 +1,81 @@
+# Pinned so the project name does not depend on the directory you run from.
+# Without it compose derives the name from the cwd, which is how this stack
+# once ran as two halves sharing container names but mounting config from
+# different trees.
+name: observability
+
+services:
+  lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: observability-lgtm
+    ports:
+      # Grafana only. Bound to loopback because it runs with anonymous admin
+      # and no login form; 3001 rather than 3000 because another local stack
+      # holds 3000/3100/3200/9090.
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - lgtm-data:/data
+      - ./grafana/datasources.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/grafana-datasources.yaml:ro
+      # Dashboards as code, so grafana/dashboards/*.json survive a volume wipe
+      - ./grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom-dashboards.yaml:ro
+      - ./grafana/dashboards:/etc/grafana-dashboards:ro
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: observability-otelcol
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - lgtm
+    ports:
+      - "127.0.0.1:4327:4317"
+      - "127.0.0.1:4328:4318"
+  app:
+    # Opt-in: `docker compose up` brings up only the telemetry backend, which
+    # is what you want when running an app from the host with `nx serve`. Build
+    # and run a containerised app with:
+    #     docker compose --profile app up -d --build
+    profiles: ["app"]
+    build:
+      # Workspace root — an Nx app needs nx.json, tsconfig.base.json, the
+      # lockfile and the other libs, none of which are visible from this
+      # directory. `build: .` was the bug: it pointed the build at
+      # libs/observability, whose src is library code with no main.ts.
+      context: ../..
+      dockerfile: libs/observability/Dockerfile
+      args:
+        APP: ${APP:-fds}
+    container_name: observability-app
+    depends_on:
+      - otel-collector
+      - postgres
+      - mongo
+    ports:
+      - "127.0.0.1:3012:3000"
+    environment:
+      # Explicit so the container does not depend on the default in main.ts.
+      # That default is for host runs, where 3000 and 3002 are taken; if the
+      # container silently inherits it the published port maps to nothing and
+      # the app is unreachable while still logging "successfully started".
+      PORT: 3000
+      # OTEL_SERVICE_NAME is deliberately NOT set here — it comes from the
+      # app's own .env (alongside MS_NAME), so the service identity is never
+      # derived from a directory name.
+      # Through the collector now, not straight to lgtm. The collector forwards
+      # to lgtm after redaction/scrub/sampling (see otel-collector/config.yaml).
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      LOG_LEVEL: info
+      # Debugging aid: logs every response body to stdout and Loki. Redacted
+      LOG_REQUEST_BODY: "true"
+      LOG_RESPONSE_BODY: "true"
+      NODE_ENV: production
+
+volumes:
+  lgtm-data:
+  pg-data:
+  mongo-data:
