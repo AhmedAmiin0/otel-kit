@@ -1,14 +1,2 @@
-import type { ServerResponse } from 'node:http';
-
-
-interface CaptureState {
-  body: string;
-}
-
-const capturedBodies = new WeakMap<ServerResponse, CaptureState>();
-export const storeCapturedBody = (res: ServerResponse, body: string): void => {
-  capturedBodies.set(res, { body });
-};
-export const readCapturedBody = (
-  res: ServerResponse | undefined,
-): string | undefined => (res ? capturedBodies.get(res)?.body : undefined);
+/** @deprecated Import from core instead. Removed when the Nest adapter moves in Stage 3. */
+export * from '../core/redaction/body-capture';
