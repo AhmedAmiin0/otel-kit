@@ -5,9 +5,9 @@ import type {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
-import type { ConfigType } from '@nestjs/config';
-import { observabilityConfig } from '../config';
-import { redactAndSerialize } from './redact';
+import type { ObservabilityConfig } from '../core/config/types';
+import { OBSERVABILITY_CONFIG } from './tokens';
+import { redactAndSerialize } from '../core/redaction/redact';
 
 const instrumented = new WeakSet<object>();
 
@@ -17,8 +17,8 @@ export class HttpClientLogger implements OnModuleInit {
   private readonly startedAt = new WeakMap<object, number>();
   constructor(
     private readonly http: HttpService,
-    @Inject(observabilityConfig.KEY)
-    private readonly config: ConfigType<typeof observabilityConfig>,
+    @Inject(OBSERVABILITY_CONFIG)
+    private readonly config: ObservabilityConfig,
   ) {}
 
   onModuleInit(): void {

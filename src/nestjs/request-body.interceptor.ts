@@ -6,18 +6,18 @@ import {
   type ExecutionContext,
   type NestInterceptor,
 } from '@nestjs/common';
-import type { ConfigType } from '@nestjs/config';
 import type { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { observabilityConfig } from '../config';
-import { storeCapturedBody } from './body-capture';
-import { redactAndSerialize } from './redact';
+import type { ObservabilityConfig } from '../core/config/types';
+import { OBSERVABILITY_CONFIG } from './tokens';
+import { storeCapturedBody } from '../core/redaction/body-capture';
+import { redactAndSerialize } from '../core/redaction/redact';
 
 @Injectable()
 export class RequestBodyInterceptor implements NestInterceptor {
   constructor(
-    @Inject(observabilityConfig.KEY)
-    private readonly config: ConfigType<typeof observabilityConfig>,
+    @Inject(OBSERVABILITY_CONFIG)
+    private readonly config: ObservabilityConfig,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {

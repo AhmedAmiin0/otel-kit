@@ -2,8 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { RequestMethod } from '@nestjs/common';
 import type { Params } from 'nestjs-pino';
 import type pino from 'pino';
-import type { ObservabilityConfig } from '../config';
-import { buildSerializers, httpLogLevel } from './serializers';
+import type { ObservabilityConfig } from '../core/config/types';
+import { buildSerializers, httpLogLevel } from '../core/redaction/serializers';
 
 export const buildPinoConfig = (config: ObservabilityConfig): Params => {
   const { logging, redaction } = config;

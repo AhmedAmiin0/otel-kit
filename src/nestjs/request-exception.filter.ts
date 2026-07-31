@@ -1,19 +1,19 @@
 import type { ServerResponse } from 'node:http';
 import { Catch, Inject, HttpException, type ArgumentsHost } from '@nestjs/common';
-import type { ConfigType } from '@nestjs/config';
 import { BaseExceptionFilter, HttpAdapterHost } from '@nestjs/core';
 import { context } from '@opentelemetry/api';
 import { getRPCMetadata, RPCType } from '@opentelemetry/core';
-import { observabilityConfig } from '../config';
-import { storeCapturedBody } from './body-capture';
-import { redactAndSerialize } from './redact';
+import type { ObservabilityConfig } from '../core/config/types';
+import { OBSERVABILITY_CONFIG } from './tokens';
+import { storeCapturedBody } from '../core/redaction/body-capture';
+import { redactAndSerialize } from '../core/redaction/redact';
 
 @Catch()
 export class RequestExceptionFilter extends BaseExceptionFilter {
   constructor(
     httpAdapterHost: HttpAdapterHost,
-    @Inject(observabilityConfig.KEY)
-    private readonly config: ConfigType<typeof observabilityConfig>,
+    @Inject(OBSERVABILITY_CONFIG)
+    private readonly config: ObservabilityConfig,
   ) {
     super(httpAdapterHost.httpAdapter);
   }
