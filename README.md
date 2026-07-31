@@ -173,6 +173,28 @@ ObservabilityModule.forRoot({ logger: false });
 The redaction helpers are logger-agnostic, so they keep working whichever you choose — import
 `redactAndSerialize` and `buildSerializers` from `otel-kit/core`.
 
+### Outbound HTTP logging
+
+`HttpClientLogger` logs outbound calls with the same redaction as inbound ones. Register it in the
+module that imports `HttpModule`, not through `ObservabilityModule`:
+
+```ts
+@Module({
+  imports: [HttpModule.register({ timeout: 5000 })],
+  providers: [HttpClientLogger],
+})
+export class ApiModule {}
+```
+
+That one line is deliberate. It patches the axios instance behind whichever `HttpService` is
+injected into it, and `HttpModule.register(...)` produces a *different* instance from the static
+`HttpModule`. If this package imported `HttpModule` itself, it would patch its own instance and
+anyone configuring a timeout or `baseURL` would get no outbound logging and no error — so wiring it
+where your `HttpService` actually lives is the only way to reach the right one.
+
+Set `LOG_HTTP_CLIENT=false` if you don't want it; otherwise a debug diagnostic reminds you it needs
+wiring.
+
 ### Global providers
 
 **Response-body interceptor**, registered by default. It captures response bodies for logging and,
