@@ -1,28 +1,63 @@
 {
-  "name": "@libs/observability",
-  "version": "0.0.1",
+  "name": "otel-kit",
+  "version": "0.1.0",
+  "description": "OpenTelemetry setup that configures itself from the packages your app already has, with pluggable exporters and an optional NestJS adapter.",
+  "keywords": [
+    "opentelemetry",
+    "otel",
+    "observability",
+    "tracing",
+    "metrics",
+    "logging",
+    "instrumentation",
+    "prometheus",
+    "nestjs",
+    "pino"
+  ],
   "license": "MIT",
+  "author": "Ahmed Amin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahmedamin/otel-kit.git"
+  },
+  "homepage": "https://github.com/ahmedamin/otel-kit#readme",
+  "bugs": {
+    "url": "https://github.com/ahmedamin/otel-kit/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": [
+    "./dist/register.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "@libs/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
     "./core": {
-      "@libs/source": "./src/core/index.ts",
       "types": "./dist/core/index.d.ts",
       "default": "./dist/core/index.js"
     },
     "./node": {
-      "@libs/source": "./src/node/index.ts",
       "types": "./dist/node/index.d.ts",
       "default": "./dist/node/index.js"
     },
+    "./nestjs": {
+      "types": "./dist/nestjs/index.d.ts",
+      "default": "./dist/nestjs/index.js"
+    },
+    "./pino": {
+      "types": "./dist/pino/index.d.ts",
+      "default": "./dist/pino/index.js"
+    },
     "./register": {
-      "@libs/source": "./src/register.ts",
       "types": "./dist/register.d.ts",
       "default": "./dist/register.js"
     }
@@ -34,6 +69,12 @@
       ],
       "node": [
         "./dist/node/index.d.ts"
+      ],
+      "nestjs": [
+        "./dist/nestjs/index.d.ts"
+      ],
+      "pino": [
+        "./dist/pino/index.d.ts"
       ],
       "register": [
         "./dist/register.d.ts"
@@ -50,10 +91,13 @@
   "scripts": {
     "build": "tsc -b tsconfig.lib.json",
     "clean": "tsc -b tsconfig.lib.json --clean",
-    "pack:build": "tsc -p tsconfig.pack.json",
     "test": "jest",
     "test:watch": "jest --watch",
     "typecheck": "tsc -b tsconfig.lib.json --dry"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "tslib": "^2.3.0"
   },
   "peerDependencies": {
     "@opentelemetry/sdk-node": "^0.221.0",
@@ -79,31 +123,6 @@
     "nestjs-pino": "^4.6.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0"
-  },
-  "dependencies": {
-    "@opentelemetry/api": "^1.9.1",
-    "tslib": "^2.3.0"
-  },
-  "devDependencies": {
-    "@nestjs/axios": "^4.0.0",
-    "@nestjs/common": "^11.0.0",
-    "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.0.0",
-    "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/context-async-hooks": "^2.10.0",
-    "@opentelemetry/resources": "^2.10.0",
-    "@opentelemetry/sdk-logs": "^0.221.0",
-    "@opentelemetry/sdk-node": "^0.221.0",
-    "@opentelemetry/sdk-trace-base": "^2.10.0",
-    "@opentelemetry/semantic-conventions": "^1.43.0",
-    "@types/jest": "^29.5.14",
-    "@types/node": "20.19.9",
-    "axios": "^1.6.0",
-    "jest": "^29.7.0",
-    "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.0",
-    "ts-jest": "^29.4.12",
-    "typescript": "~5.8.2"
   },
   "peerDependenciesMeta": {
     "@opentelemetry/sdk-node": {
@@ -175,5 +194,25 @@
     "pino-http": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "@nestjs/axios": "^4.0.0",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/context-async-hooks": "^2.10.0",
+    "@opentelemetry/resources": "^2.10.0",
+    "@opentelemetry/sdk-logs": "^0.221.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
+    "@opentelemetry/sdk-trace-base": "^2.10.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "20.19.9",
+    "axios": "^1.6.0",
+    "jest": "^29.7.0",
+    "reflect-metadata": "^0.1.13",
+    "rxjs": "^7.8.0",
+    "ts-jest": "^29.4.12",
+    "typescript": "~5.8.2"
   }
 }
