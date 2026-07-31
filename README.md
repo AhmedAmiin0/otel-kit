@@ -175,31 +175,34 @@ The redaction helpers are logger-agnostic, so they keep working whichever you ch
 
 ### Global providers
 
-The module registers two things on the request path, both optional.
+**Response-body interceptor**, registered by default. It captures response bodies for logging and,
+on the error path, backfills the span route for requests that matched no handler — without that,
+those traces are named generically.
 
-**Response-body interceptor.** Captures response bodies so they can be logged. It follows
-`logging.responseBody`, so turning that off skips registration entirely rather than installing an
-interceptor that runs on every request and does nothing:
-
-```bash
-LOG_RESPONSE_BODY=false
-```
+`LOG_RESPONSE_BODY=false` stops bodies being captured but leaves the interceptor in place, since the
+route backfill is worth having either way. To remove it from the request path entirely:
 
 ```ts
-ObservabilityModule.forRoot({ config: { logging: { responseBody: false } } });
-ObservabilityModule.forRoot({ responseBodyInterceptor: false });   // explicit override
+ObservabilityModule.forRoot({ interceptor: false });
 ```
 
-**Exception filter.** Captures error response bodies, and backfills the span route for requests that
-matched no handler — without it those traces are named generically. It stays on when the interceptor
-is off. Disable it if you register your own global filter and they conflict:
+**Exception filter — off by default, and usually should stay off.** `APP_FILTER` is not a cumulative
+token: whichever global filter Nest picks is the only one that runs. A filter registered by this
+package would therefore take over exception handling for your whole application, and your own filter
+would silently stop running — same code, same routes, but your custom error shapes replaced by
+generic 500s.
+
+So the interceptor does that work instead. It observes the error, backfills the route, captures the
+body, and rethrows, leaving your error handling untouched. `APP_INTERCEPTOR` is cumulative, so it
+composes with any interceptors you register.
+
+`RequestExceptionFilter` is still exported if you want it, and can be registered explicitly:
 
 ```ts
-ObservabilityModule.forRoot({ exceptionFilter: false });
+ObservabilityModule.forRoot({ exceptionFilter: true });   // takes over global error handling
 ```
 
-Both options work on `forRootAsync` too, where they default to `true` because the config isn't known
-until the factory runs.
+Both options work the same on `forRootAsync`.
 
 ## Redaction
 

@@ -5,6 +5,7 @@ import { context } from '@opentelemetry/api';
 import { getRPCMetadata, RPCType } from '@opentelemetry/core';
 import type { ObservabilityConfig } from '../core/config/types';
 import { OBSERVABILITY_CONFIG } from './tokens';
+import { errorResponseBody } from './error-body';
 import { storeCapturedBody } from '../core/redaction/body-capture';
 import { redactAndSerialize } from '../core/redaction/redact';
 
@@ -42,5 +43,3 @@ export class RequestExceptionFilter extends BaseExceptionFilter {
   }
 }
 
-export const errorResponseBody = (exception: unknown): unknown =>
-  exception instanceof HttpException ? exception.getResponse() : { statusCode: 500, message: 'Internal server error' };

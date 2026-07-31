@@ -14,9 +14,19 @@ export type PinoParams = Record<string, unknown>;
 export type LoggerOption = false | ((defaults: PinoParams) => PinoParams) | DynamicModule;
 
 interface ProviderOptions {
-  /** Defaults to `logging.responseBody`. */
-  responseBodyInterceptor?: boolean;
-  /** On by default: it also backfills the span route for unmatched requests. */
+  /**
+   * The interceptor captures response bodies and backfills the span route on
+   * errors. On by default; body capture itself still follows
+   * `logging.responseBody`.
+   */
+  interceptor?: boolean;
+  /**
+   * Register RequestExceptionFilter as a global filter. Off by default, and
+   * rarely what you want: APP_FILTER is not cumulative, so a global filter
+   * registered here takes over exception handling for the whole application
+   * and stops your own filter from ever running. The interceptor already
+   * covers route backfill and error-body capture without that side effect.
+   */
   exceptionFilter?: boolean;
 }
 
@@ -74,13 +84,13 @@ const httpClientImports = (
   return [HttpModule];
 };
 
-const requestProviders = (opts: { interceptor: boolean; filter: boolean }): Provider[] => {
+const requestProviders = (opts: ProviderOptions): Provider[] => {
   const providers: Provider[] = [];
 
-  if (opts.interceptor) {
+  if (opts.interceptor !== false) {
     providers.push({ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor });
   }
-  if (opts.filter) {
+  if (opts.exceptionFilter === true) {
     providers.push({ provide: APP_FILTER, useClass: RequestExceptionFilter });
   }
 
@@ -108,10 +118,7 @@ export class ObservabilityModule {
       providers: [
         { provide: OBSERVABILITY_CONFIG, useValue: config },
         TelemetryService,
-        ...requestProviders({
-          interceptor: options.responseBodyInterceptor ?? config.logging.responseBody,
-          filter: options.exceptionFilter ?? true,
-        }),
+        ...requestProviders(options),
         ...clientProviders,
       ],
       exports: [OBSERVABILITY_CONFIG, TelemetryService, ...clientProviders],
@@ -131,10 +138,7 @@ export class ObservabilityModule {
           useFactory: async (...args: never[]) => defineConfig(await options.useFactory(...args)),
         },
         TelemetryService,
-        ...requestProviders({
-          interceptor: options.responseBodyInterceptor ?? true,
-          filter: options.exceptionFilter ?? true,
-        }),
+        ...requestProviders(options),
       ],
       exports: [OBSERVABILITY_CONFIG, TelemetryService],
     };
