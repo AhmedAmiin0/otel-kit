@@ -170,8 +170,50 @@ ObservabilityModule.forRoot({ logger: WinstonModule.forRoot(myOptions) });
 ObservabilityModule.forRoot({ logger: false });
 ```
 
-The redaction helpers are logger-agnostic, so they keep working whichever you choose — import
-`redactAndSerialize` and `buildSerializers` from `otel-kit/core`.
+### Using a different logger
+
+pino is a convenience, not a requirement. Everything that builds a log record lives in
+`otel-kit/core` and depends on nothing but Node's `http` types, so winston, bunyan, or your own
+wrapper get the same redaction, body capture, and level mapping.
+
+`ObsLogger` is the whole interface — four methods and `child`:
+
+```ts
+import { logRequest } from 'otel-kit/core';
+import winston from 'winston';
+
+const wl = winston.createLogger({ /* your transports */ });
+
+const adapter = {
+  debug: (o, m) => wl.debug(m ?? '', o),
+  info: (o, m) => wl.info(m ?? '', o),
+  warn: (o, m) => wl.warn(m ?? '', o),
+  error: (o, m) => wl.error(m ?? '', o),
+  child: () => adapter,
+};
+
+app.use((req, res, next) => {
+  res.on('finish', () => logRequest(adapter, req, res, config));
+  next();
+});
+```
+
+That gives you the same records pino produces: redacted request and response bodies, sanitized
+headers, correlation id, and `4xx → warn` / `5xx → error` levels. Excluded routes and `3xx` are
+skipped for you.
+
+If you want the pieces rather than the whole record, they compose individually:
+
+| Export | Does |
+| --- | --- |
+| `buildRequestLog(req, res, config, err?)` | The record and its level, or `undefined` when the request should be skipped |
+| `serializeRequest(req, config)` | Redacted request view |
+| `serializeResponse(res, config)` | Redacted response view, including the captured body |
+| `redactAndSerialize(value, redaction)` | Redact and truncate any value |
+| `httpLogLevel(req, res, err?)` | Status to level, with `'silent'` for redirects |
+
+Response bodies are captured into a `WeakMap` keyed by the response object, so `serializeResponse`
+can reach them from any logger — that part was never pino-specific.
 
 ### Outbound HTTP logging
 

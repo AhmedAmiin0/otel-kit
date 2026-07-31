@@ -38,5 +38,14 @@ export { withSpan, getRequestContext } from './telemetry/spans';
 export { Telemetry } from './telemetry/telemetry';
 
 export { redactBody, serializeBody, redactAndSerialize } from './redaction/redact';
-export { buildSerializers, sanitizeHeaders, httpLogLevel } from './redaction/serializers';
+export {
+  buildSerializers,
+  serializeRequest,
+  serializeResponse,
+  sanitizeHeaders,
+  httpLogLevel,
+} from './redaction/serializers';
+export type { SerializerConfig } from './redaction/serializers';
+export { buildRequestLog, logRequest } from './logger/request-logger';
+export type { RequestLogConfig } from './logger/request-logger';
 export { storeCapturedBody, readCapturedBody } from './redaction/body-capture';

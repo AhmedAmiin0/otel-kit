@@ -61,35 +61,46 @@ export const httpLogLevel = (
   return 'info';
 };
 
-/**
- * Takes only the two sections it reads rather than the whole config, so it
- * stays usable from any caller holding a compatible logging/redaction pair.
- */
-export const buildSerializers = (config: {
-  logging: LoggingConfig;
-  redaction: RedactionConfig;
-}) => {
-  const { logging, redaction } = config;
+/** Only the two sections these read, so any caller holding a compatible pair can use them. */
+export type SerializerConfig = { logging: LoggingConfig; redaction: RedactionConfig };
 
-  return {
-    req: (req: RequestLike) => ({
-      id: req.id,
-      method: req.method,
-      url: req.originalUrl ?? req.url,
-      remoteAddress: req.remoteAddress ?? req.socket?.remoteAddress,
-      ...(logging.headers
-        ? { headers: sanitizeHeaders(req.headers, redaction.placeholder) }
-        : {}),
-      ...(logging.requestBody
-        ? { body: redactAndSerialize(req.raw?.body ?? req.body, redaction) }
-        : {}),
-    }),
-    res: (res: SerializedResponse) => ({
-      statusCode: res.statusCode,
-      ...(logging.headers
-        ? { headers: sanitizeHeaders(res.headers, redaction.placeholder) }
-        : {}),
-      ...(logging.responseBody ? { body: readCapturedBody(res.raw) } : {}),
-    }),
-  };
-};
+/**
+ * Redacted view of an inbound request, independent of any logger.
+ *
+ * Works with a plain Node IncomingMessage, an Express request, or a Fastify
+ * one — pass whatever your framework gives you.
+ */
+export const serializeRequest = (
+  req: RequestLike,
+  { logging, redaction }: SerializerConfig,
+): Record<string, unknown> => ({
+  id: req.id,
+  method: req.method,
+  url: req.originalUrl ?? req.url,
+  remoteAddress: req.remoteAddress ?? req.socket?.remoteAddress,
+  ...(logging.headers ? { headers: sanitizeHeaders(req.headers, redaction.placeholder) } : {}),
+  ...(logging.requestBody
+    ? { body: redactAndSerialize(req.raw?.body ?? req.body, redaction) }
+    : {}),
+});
+
+/**
+ * Redacted view of a response, independent of any logger.
+ *
+ * The body comes from whatever `storeCapturedBody` recorded for this response,
+ * so it is available to any logger, not only pino.
+ */
+export const serializeResponse = (
+  res: ServerResponse,
+  { logging, redaction }: SerializerConfig,
+): Record<string, unknown> => ({
+  statusCode: res.statusCode,
+  ...(logging.headers ? { headers: sanitizeHeaders(res.getHeaders(), redaction.placeholder) } : {}),
+  ...(logging.responseBody ? { body: readCapturedBody(res) } : {}),
+});
+
+/** pino-shaped wrapper over the two serializers above. */
+export const buildSerializers = (config: SerializerConfig) => ({
+  req: (req: RequestLike) => serializeRequest(req, config),
+  res: (res: SerializedResponse) => serializeResponse(res.raw, config),
+});
