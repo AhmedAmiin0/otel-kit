@@ -1,9 +1,6 @@
 /**
- * Distinguishes a configuration literal from a class instance.
- *
- * A user may hand us a constructed SpanExporter or Instrumentation in the
- * config. Merging one of those field-by-field would destroy it, so only
- * plain objects are allowed to recurse.
+ * Only plain objects may recurse. A user-supplied SpanExporter or
+ * Instrumentation instance would be destroyed by a field-by-field merge.
  */
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
   if (value === null || typeof value !== 'object') return false;

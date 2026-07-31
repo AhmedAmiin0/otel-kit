@@ -25,10 +25,7 @@ export interface BuiltSdk {
   resourceAttributes: Record<string, string>;
 }
 
-/**
- * Assembles the SDK from resolved parts, returning them alongside it so a
- * pipeline can be asserted without being started.
- */
+/** Returns the resolved parts alongside the SDK so a pipeline can be asserted unstarted. */
 export const createSdk = (
   config: ObservabilityConfig,
   deps: ExporterDeps = DEFAULT_DEPS,
@@ -41,8 +38,7 @@ export const createSdk = (
   );
   const instrumentations = [...resolveInstrumentations(descriptors, diag, deps), ...instances];
 
-  // Exporters resolve before the SDK is constructed, so a bad spec throws here
-  // rather than leaving a half-configured pipeline running.
+  // Resolved before construction so a bad spec throws instead of half-configuring.
   const traceExporters = resolveTraceExporters(
     config.traces.exporter,
     { endpoint: config.traces.endpoint },
@@ -51,8 +47,7 @@ export const createSdk = (
   );
 
   if (traceExporters.length > 1) {
-    // NodeSDK accepts a single traceExporter; fanning out needs custom span
-    // processors, which is deliberately out of scope here.
+    // NodeSDK takes one traceExporter; fanning out needs custom span processors.
     diag.warn(`${traceExporters.length} trace exporters configured; only the first is wired`);
   }
 

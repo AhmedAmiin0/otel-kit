@@ -7,51 +7,30 @@ import { RequestBodyInterceptor } from './request-body.interceptor';
 import { RequestExceptionFilter } from './request-exception.filter';
 import { TelemetryService } from './telemetry.service';
 
-/**
- * Controls the request logger.
- *
- * - omitted: register nestjs-pino with the built-in config, if it is installed
- * - `false`: register no logger module; bring your own however you like
- * - function: receive the built-in pino config and return the one to use
- * - module: register this module instead (winston, a custom logger, anything)
- */
-export type LoggerOption =
-  | false
-  | ((defaults: PinoParams) => PinoParams)
-  | DynamicModule;
-
 /** Structural stand-in for nestjs-pino's Params, so this file needs no pino types. */
 export type PinoParams = Record<string, unknown>;
 
-export interface ObservabilityModuleOptions {
-  global?: boolean;
-  /** Telemetry configuration, layered over environment variables and defaults. */
-  config?: ObservabilityConfigInput;
-  logger?: LoggerOption;
-  /**
-   * Register the global interceptor that captures response bodies for logging.
-   * Defaults to `logging.responseBody`, so turning that off — via config or
-   * LOG_RESPONSE_BODY=false — also stops the interceptor being installed
-   * rather than leaving it registered and inert on every request.
-   */
+/** `false` for none, a function to adjust the built-in config, or a module to use instead. */
+export type LoggerOption = false | ((defaults: PinoParams) => PinoParams) | DynamicModule;
+
+interface ProviderOptions {
+  /** Defaults to `logging.responseBody`. */
   responseBodyInterceptor?: boolean;
-  /**
-   * Register the global exception filter. On by default: besides capturing
-   * error bodies it backfills the span route for requests that matched no
-   * handler, which is what keeps those traces from being named generically.
-   * Set false if you register your own global filter and it conflicts.
-   */
+  /** On by default: it also backfills the span route for unmatched requests. */
   exceptionFilter?: boolean;
 }
 
-export interface ObservabilityModuleAsyncOptions {
+export interface ObservabilityModuleOptions extends ProviderOptions {
+  global?: boolean;
+  config?: ObservabilityConfigInput;
+  logger?: LoggerOption;
+}
+
+export interface ObservabilityModuleAsyncOptions extends ProviderOptions {
   global?: boolean;
   imports?: DynamicModule['imports'];
   inject?: unknown[];
   useFactory: (...args: never[]) => ObservabilityConfigInput | Promise<ObservabilityConfigInput>;
-  /** Defaults to true — the config is not known until the factory runs. */
-  responseBodyInterceptor?: boolean;
-  exceptionFilter?: boolean;
 }
 
 const canResolve = (id: string): boolean => {
@@ -66,14 +45,7 @@ const canResolve = (id: string): boolean => {
 const isDynamicModule = (value: unknown): value is DynamicModule =>
   typeof value === 'object' && value !== null && 'module' in value;
 
-/**
- * Resolves the request logger.
- *
- * The built-in pino wiring is a default, not a mandate: pass `logger: false`
- * to opt out entirely, a function to adjust the generated config, or your own
- * module to replace it. pino stays out of the required dependency tree, so a
- * consumer without it gets tracing and metrics and no request logging.
- */
+/** pino is loaded here, not imported, so it stays out of the required dependency tree. */
 const loggerImports = (
   config: ObservabilityConfig,
   logger: LoggerOption | undefined,
@@ -102,16 +74,7 @@ const httpClientImports = (
   return [HttpModule];
 };
 
-/**
- * The two global request-path providers, each independently opt-out.
- *
- * `interceptor` is undefined when the caller did not say, in which case the
- * decision falls to the resolved config.
- */
-const requestProviders = (opts: {
-  interceptor: boolean;
-  filter: boolean;
-}): Provider[] => [
+const requestProviders = (opts: { interceptor: boolean; filter: boolean }): Provider[] => [
   ...(opts.interceptor ? [{ provide: APP_INTERCEPTOR, useClass: RequestBodyInterceptor }] : []),
   ...(opts.filter ? [{ provide: APP_FILTER, useClass: RequestExceptionFilter }] : []),
 ];
@@ -127,8 +90,6 @@ const httpClientProviders = (config: ObservabilityConfig): Provider[] => {
 @Module({})
 export class ObservabilityModule {
   static forRoot(options: ObservabilityModuleOptions = {}): DynamicModule {
-    // `options` carries module wiring, not telemetry config. The original
-    // spread it straight into the config object, where `global` meant nothing.
     const config = defineConfig(options.config ?? {});
     const clientProviders = httpClientProviders(config);
 

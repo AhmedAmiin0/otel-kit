@@ -37,8 +37,7 @@ const build = (
 
   const [module, exportName] = entry;
 
-  // Unlike a missing instrumentation, a missing exporter means no telemetry
-  // reaches anything — failing loudly is the only safe behavior.
+  // A missing exporter means no telemetry at all; failing loudly is the safe choice.
   if (!deps.canResolve(module)) {
     throw new Error(
       `[observability] exporter "${name}" requires ${module}, which is not installed. ` +

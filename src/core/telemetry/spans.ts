@@ -19,12 +19,7 @@ export const withSpan = async <T>(
     }
   });
 
-/**
- * Ids of the active span, or undefined when there is none.
- *
- * The previous implementation started a span it never ended whenever no span
- * was active, leaking one span per call.
- */
+/** Undefined when no span is active — never start one here, it would never be ended. */
 export const getRequestContext = (): { traceId: string; spanId: string } | undefined => {
   const ctx = trace.getActiveSpan()?.spanContext();
   return ctx ? { traceId: ctx.traceId, spanId: ctx.spanId } : undefined;

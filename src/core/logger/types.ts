@@ -1,10 +1,4 @@
-/**
- * The logging surface this package depends on.
- *
- * Deliberately small and pino-shaped so a pino binding is a thin adapter,
- * while console, winston, or an OTel log bridge remain equally satisfiable.
- * Keeping it here is what lets pino leave the required dependency tree.
- */
+/** Pino-shaped so its binding is thin, small enough that any logger can satisfy it. */
 export interface ObsLogger {
   debug(obj: object | string, msg?: string): void;
   info(obj: object | string, msg?: string): void;

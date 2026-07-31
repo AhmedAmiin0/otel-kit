@@ -30,13 +30,9 @@ const pickConstructor = (mod: unknown, name?: string): Ctor | undefined => {
 };
 
 /**
- * Selects instrumentations at runtime from what the application actually has.
- *
- * Two independent gates: the library being instrumented must be present, and
- * the instrumentation package itself must be installed. Neither ever throws —
- * a missing instrumentation costs detail, and must not stop the application.
- * Exporters take the opposite policy, because a missing exporter means no
- * telemetry reaches anything at all.
+ * Two gates: the instrumented library must be present, and so must the
+ * instrumentation package. Never throws, since missing detail must not stop the
+ * app. Exporters do the opposite, as a missing one means no telemetry at all.
  */
 export const resolveInstrumentations = (
   descriptors: InstrumentationDescriptor[],
@@ -48,17 +44,16 @@ export const resolveInstrumentations = (
   for (const d of descriptors) {
     if (d.enabled === false) continue;
 
-    // A stated intent that cannot be honored is loud; a default that simply
-    // does not apply here is quiet.
+    // Stated intent that cannot be honored is loud; an inapplicable default is quiet.
     const level = d.explicit ? 'warn' : 'debug';
 
-    // Gate 1 — is the library this instruments actually in the app?
+    // Gate 1: is the instrumented library in the app?
     if (d.requires && !deps.canResolve(d.requires)) {
       diag.log(level, `skip ${d.name}: ${d.requires} is not installed`);
       continue;
     }
 
-    // Gate 2 — is the instrumentation package itself installed?
+    // Gate 2: is the instrumentation package installed?
     if (!deps.canResolve(d.module)) {
       diag.log(level, `skip ${d.name}: install ${d.module} to enable it`);
       continue;

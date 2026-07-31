@@ -11,12 +11,7 @@ export interface ShutdownOptions {
 
 const SIGNALS: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
 
-/**
- * Flushes telemetry on termination.
- *
- * Returns an unregister function so callers — tests especially — can remove
- * the listeners again rather than leaking one pair per registration.
- */
+/** Returns an unregister function so callers do not leak a listener pair per call. */
 export const registerShutdownHooks = (
   sdk: ShutdownTarget,
   diag: Diagnostics,
@@ -37,8 +32,7 @@ export const registerShutdownHooks = (
           exit(0);
         })
         .catch((err: unknown) => {
-          // The previous implementation exited 0 here, reporting success to
-          // the orchestrator even when the flush had failed.
+          // Must not exit 0: that reports success to the orchestrator on a failed flush.
           diag.error(`error shutting down OpenTelemetry SDK: ${(err as Error).message}`);
           exit(1);
         });

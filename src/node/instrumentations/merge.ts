@@ -8,12 +8,7 @@ const isInstance = (value: unknown): value is Instrumentation =>
   typeof (value as Instrumentation).enable === 'function' &&
   typeof (value as Instrumentation).disable === 'function';
 
-/**
- * Folds user overrides into the catalog, keyed by name.
- *
- * Live Instrumentation instances are separated out here so the resolver only
- * ever deals with descriptors.
- */
+/** Instances are split out here so the resolver only ever sees descriptors. */
 export const mergeInstrumentations = (
   catalog: InstrumentationDescriptor[],
   overrides: Record<string, unknown>,
@@ -39,8 +34,7 @@ export const mergeInstrumentations = (
     const existing = byName.get(name);
 
     if (existing) {
-      // `name` is re-pinned last so a patch cannot rename an entry out from
-      // under the key it is stored by.
+      // name is re-pinned last so a patch cannot rename an entry out from under its key.
       byName.set(name, { ...deepMerge(existing, patch), name, explicit: true });
       continue;
     }

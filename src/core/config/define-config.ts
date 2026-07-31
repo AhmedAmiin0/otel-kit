@@ -3,13 +3,7 @@ import { defaults } from './defaults';
 import { fromEnv } from './env';
 import type { ObservabilityConfig, ObservabilityConfigInput } from './types';
 
-/**
- * Converts input-shaped values to resolved-shaped ones.
- *
- * Must run before the merge: a Set is not a plain object, so deepMerge
- * replaces it wholesale rather than merging it. Normalizing afterwards would
- * mean merging a string[] over a Set.
- */
+/** Must run before the merge: deepMerge replaces a Set wholesale rather than merging it. */
 const normalize = (input: ObservabilityConfigInput): Record<string, unknown> => {
   const out = { ...input } as Record<string, unknown>;
   const redaction = out['redaction'] as { keys?: string[] } | undefined;
@@ -25,11 +19,8 @@ const normalize = (input: ObservabilityConfigInput): Record<string, unknown> => 
 };
 
 /**
- * Resolves the effective configuration.
- *
- * Precedence falls out of argument order: defaults, then environment, then
- * programmatic overrides. `env` is a parameter so precedence can be tested
- * without mutating the real process environment.
+ * Precedence follows argument order: defaults, environment, then overrides.
+ * `env` is a parameter so precedence is testable without mutating process.env.
  */
 export const defineConfig = (
   overrides: ObservabilityConfigInput = {},

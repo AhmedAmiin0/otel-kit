@@ -1,12 +1,7 @@
 import type { ObsLogger } from '../core/logger/types';
 import type { ObservabilityConfig } from '../core/config/types';
 
-/**
- * Adapts a pino instance to the ObsLogger interface.
- *
- * pino is loaded here rather than imported at module scope so that importing
- * this subpath is the only thing that pulls pino in.
- */
+/** pino is loaded here, not imported, so only this subpath pulls it in. */
 export const createPinoLogger = (config: ObservabilityConfig): ObsLogger => {
   const pino = require('pino') as typeof import('pino').pino;
 

@@ -1,13 +1,10 @@
 /**
- * Side-effect entry point. Preload before the application so instrumentation
- * patches modules before they are required:
+ * Preload before the application so instrumentation patches modules first:
  *
- *   node -r @yourscope/observability/register dist/main.js
+ *   node -r otel-kit/register dist/main.js
  *
- * Deliberately does NOT load dotenv — a library must not mutate the host's
- * environment. If you need a .env file, preload it yourself:
- *
- *   node -r dotenv/config -r @yourscope/observability/register dist/main.js
+ * Does not load dotenv — a library should not mutate the host's environment.
+ * Preload it yourself: `node -r dotenv/config -r otel-kit/register`.
  */
 import { startObservability } from './node/sdk';
 

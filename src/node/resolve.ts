@@ -1,12 +1,8 @@
 /**
- * Optional-peer resolution.
- *
- * `require.resolve(id)` called from inside this library searches relative to
- * THIS file. Under pnpm's strict, non-hoisted node_modules layout the
- * consuming application's dependencies are not reachable that way, so every
- * lookup must also search from the application's perspective. Without this,
- * an instrumentation gate would report "not installed" for a package the app
- * plainly depends on.
+ * require.resolve from inside this file searches the library's own
+ * node_modules. Under pnpm's non-hoisted layout that never sees the consuming
+ * app's dependencies, so every gate would report "not installed" for packages
+ * the app plainly depends on. Search from the app's perspective too.
  */
 export const resolutionPaths = (): string[] => {
   const candidates = [process.cwd(), ...(require.main?.paths ?? []), __dirname];
