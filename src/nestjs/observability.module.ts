@@ -94,22 +94,20 @@ const loggerImports = (
 };
 
 /**
- * HTTP client logging is not wired automatically.
+ * Registers outbound HTTP logging whenever @nestjs/axios is present.
  *
- * HttpClientLogger patches the axios instance behind whichever HttpService is
- * injected into it. Importing HttpModule here would bind the one from the
- * static module, which is a different instance from the one produced by
- * `HttpModule.register(...)` — so a consumer who configures a timeout or
- * baseURL would get no outbound logging and no indication why. Registering it
- * next to their own HttpModule is the only way to reach the right instance.
+ * The logger resolves HttpService from the container at init rather than
+ * having it injected, so it reaches whichever instance the application
+ * actually uses — importing HttpModule here would bind the static one, which
+ * differs from what `HttpModule.register(...)` provides.
  */
-const noteHttpClientSetup = (config: ObservabilityConfig): void => {
-  if (!config.logging.httpClient) return;
+const httpClientProvider = (config: ObservabilityConfig): Provider[] => {
+  if (!config.logging.httpClient) return [];
+  if (!loadOptional('@nestjs/axios')) return [];
 
-  createDiagnostics(config.diagnostics.level).debug(
-    'HTTP client logging needs wiring: add HttpClientLogger to the providers of ' +
-      'the module that imports HttpModule, or set LOG_HTTP_CLIENT=false to silence this',
-  );
+  const { HttpClientLogger } =
+    require('./http-client.logger') as typeof import('./http-client.logger');
+  return [HttpClientLogger];
 };
 
 const interceptorProvider = (interceptor: InterceptorOption | undefined): Provider[] => {
@@ -128,21 +126,30 @@ const interceptorProvider = (interceptor: InterceptorOption | undefined): Provid
 /** Every provider the module contributes, in one place. */
 const registerProviders = (
   configProvider: Provider,
+  config: ObservabilityConfig,
   options: ProviderOptions,
-): Pick<DynamicModule, 'providers' | 'exports'> => ({
-  providers: [configProvider, TelemetryService, ...interceptorProvider(options.interceptor)],
-  exports: [OBSERVABILITY_CONFIG, TelemetryService],
-});
+): Pick<DynamicModule, 'providers' | 'exports'> => {
+  const httpClient = httpClientProvider(config);
+
+  return {
+    providers: [
+      configProvider,
+      TelemetryService,
+      ...interceptorProvider(options.interceptor),
+      ...httpClient,
+    ],
+    exports: [OBSERVABILITY_CONFIG, TelemetryService, ...httpClient],
+  };
+};
 
 @Global()
 @Module({})
 export class ObservabilityModule {
   static forRoot(options: ObservabilityModuleOptions = {}): DynamicModule {
     const config = defineConfig(options.config ?? {});
-    noteHttpClientSetup(config);
-
     const { providers, exports } = registerProviders(
       { provide: OBSERVABILITY_CONFIG, useValue: config },
+      config,
       options,
     );
 
@@ -163,6 +170,9 @@ export class ObservabilityModule {
         inject: (options.inject ?? []) as never[],
         useFactory: async (...args: never[]) => defineConfig(await options.useFactory(...args)),
       },
+      // The real config is not known until the factory runs; the logger checks
+      // logging.httpClient again at init, so registering it here is safe.
+      defineConfig({}),
       options,
     );
 

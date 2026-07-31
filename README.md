@@ -175,25 +175,23 @@ The redaction helpers are logger-agnostic, so they keep working whichever you ch
 
 ### Outbound HTTP logging
 
-`HttpClientLogger` logs outbound calls with the same redaction as inbound ones. Register it in the
-module that imports `HttpModule`, not through `ObservabilityModule`:
+Outbound calls are logged with the same redaction as inbound ones, and it wires itself up. Import
+`HttpModule` however you like and there is nothing else to do:
 
 ```ts
 @Module({
-  imports: [HttpModule.register({ timeout: 5000 })],
-  providers: [HttpClientLogger],
+  imports: [HttpModule.register({ timeout: 5000 })],   // or a bare HttpModule
 })
 export class ApiModule {}
 ```
 
-That one line is deliberate. It patches the axios instance behind whichever `HttpService` is
-injected into it, and `HttpModule.register(...)` produces a *different* instance from the static
-`HttpModule`. If this package imported `HttpModule` itself, it would patch its own instance and
-anyone configuring a timeout or `baseURL` would get no outbound logging and no error — so wiring it
-where your `HttpService` actually lives is the only way to reach the right one.
+The logger looks `HttpService` up from the container at startup rather than having it injected. That
+matters because `HttpModule.register(...)` provides a *different* instance from the static
+`HttpModule` — anything that bound one at module-definition time would patch an instance your code
+never calls through, and would do it silently.
 
-Set `LOG_HTTP_CLIENT=false` if you don't want it; otherwise a debug diagnostic reminds you it needs
-wiring.
+If no `HttpModule` is present the logger stays idle and says so at debug level. Set
+`LOG_HTTP_CLIENT=false` to turn it off entirely.
 
 ### Global providers
 

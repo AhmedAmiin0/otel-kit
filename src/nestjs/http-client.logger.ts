@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
+import { ModuleRef } from '@nestjs/core';
+import type { HttpService } from '@nestjs/axios';
 import type {
   AxiosError,
   AxiosResponse,
@@ -16,13 +17,47 @@ export class HttpClientLogger implements OnModuleInit {
   private readonly logger = new Logger('HttpClient');
   private readonly startedAt = new WeakMap<object, number>();
   constructor(
-    private readonly http: HttpService,
+    private readonly moduleRef: ModuleRef,
     @Inject(OBSERVABILITY_CONFIG)
     private readonly config: ObservabilityConfig,
   ) {}
 
+  /**
+   * Finds the HttpService the application actually uses.
+   *
+   * Injecting it directly would bind whichever instance is visible from this
+   * module, and HttpModule.register(...) provides a different one from the
+   * static HttpModule. A non-strict lookup searches the whole container, so
+   * the instance patched here is the one the consumer calls through.
+   */
+  private resolveHttpService(): HttpService | undefined {
+    let token: unknown;
+    try {
+      ({ HttpService: token } = require('@nestjs/axios') as typeof import('@nestjs/axios'));
+    } catch {
+      return undefined;
+    }
+
+    try {
+      return this.moduleRef.get(token as never, { strict: false });
+    } catch {
+      return undefined;
+    }
+  }
+
   onModuleInit(): void {
-    const axios = this.http.axiosRef;
+    if (!this.config.logging.httpClient) return;
+
+    const http = this.resolveHttpService();
+    if (!http) {
+      this.logger.debug(
+        'outbound HTTP logging is idle: no HttpService found. Import HttpModule somewhere, ' +
+          'or set LOG_HTTP_CLIENT=false to silence this.',
+      );
+      return;
+    }
+
+    const axios = http.axiosRef;
     if (instrumented.has(axios)) return;
     instrumented.add(axios);
 
