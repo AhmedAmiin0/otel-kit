@@ -186,23 +186,14 @@ route backfill is worth having either way. To remove it from the request path en
 ObservabilityModule.forRoot({ interceptor: false });
 ```
 
-**Exception filter — off by default, and usually should stay off.** `APP_FILTER` is not a cumulative
-token: whichever global filter Nest picks is the only one that runs. A filter registered by this
-package would therefore take over exception handling for your whole application, and your own filter
-would silently stop running — same code, same routes, but your custom error shapes replaced by
-generic 500s.
+**No global exception filter.** This package deliberately registers none. `APP_FILTER` is not a
+cumulative token — whichever global filter Nest picks is the only one that runs — so a filter shipped
+here would take over exception handling for your whole application and silently stop your own filter
+from running. Same code, same routes, but your error shapes replaced by generic 500s.
 
-So the interceptor does that work instead. It observes the error, backfills the route, captures the
-body, and rethrows, leaving your error handling untouched. `APP_INTERCEPTOR` is cumulative, so it
-composes with any interceptors you register.
-
-`RequestExceptionFilter` is still exported if you want it, and can be registered explicitly:
-
-```ts
-ObservabilityModule.forRoot({ exceptionFilter: true });   // takes over global error handling
-```
-
-Both options work the same on `forRootAsync`.
+The interceptor does that work instead: it observes the error, backfills the route, captures the
+body, and rethrows. `APP_INTERCEPTOR` is cumulative, so your filters and interceptors keep behaving
+exactly as they did before you installed this.
 
 ## Redaction
 

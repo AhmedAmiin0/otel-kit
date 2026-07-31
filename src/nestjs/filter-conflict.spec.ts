@@ -55,25 +55,14 @@ describe('coexistence with a consumer exception filter', () => {
     expect(res.body).toEqual({ handledBy: 'consumer' });
   });
 
-  it('registers no global exception filter by default', async () => {
+  it('registers no global exception filter at all', () => {
     const mod = ObservabilityModule.forRoot({ logger: false });
     const classes = (mod.providers ?? []).flatMap((p) => {
       const useClass = (p as { useClass?: { name: string } }).useClass;
       return useClass ? [useClass.name] : [];
     });
 
-    expect(classes).toContain('ResponseBodyInterceptor');
-    expect(classes).not.toContain('RequestExceptionFilter');
-  });
-
-  it('registers the filter only when explicitly asked', async () => {
-    const mod = ObservabilityModule.forRoot({ logger: false, exceptionFilter: true });
-    const classes = (mod.providers ?? []).flatMap((p) => {
-      const useClass = (p as { useClass?: { name: string } }).useClass;
-      return useClass ? [useClass.name] : [];
-    });
-
-    expect(classes).toContain('RequestExceptionFilter');
+    expect(classes).toEqual(['ResponseBodyInterceptor']);
   });
 
   it('still serves errors when the consumer has no filter of their own', async () => {

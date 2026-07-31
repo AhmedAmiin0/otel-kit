@@ -68,10 +68,8 @@ describe('request-path providers', () => {
       return useClass ? [useClass.name] : [];
     });
 
-  it('registers the interceptor but not the filter by default', () => {
-    const names = classesOf(ObservabilityModule.forRoot());
-    expect(names).toContain('ResponseBodyInterceptor');
-    expect(names).not.toContain('RequestExceptionFilter');
+  it('registers the interceptor by default', () => {
+    expect(classesOf(ObservabilityModule.forRoot())).toEqual(['ResponseBodyInterceptor']);
   });
 
   // The interceptor also backfills the span route, worth doing whether or not
@@ -85,29 +83,13 @@ describe('request-path providers', () => {
     expect(classesOf(ObservabilityModule.forRoot({ interceptor: false }))).toEqual([]);
   });
 
-  it('registers the filter only on explicit opt-in', () => {
-    const names = classesOf(ObservabilityModule.forRoot({ exceptionFilter: true }));
-    expect(names).toContain('RequestExceptionFilter');
-    expect(names).toContain('ResponseBodyInterceptor');
-  });
-
-  it('can register neither', () => {
-    const mod = ObservabilityModule.forRoot({ interceptor: false, exceptionFilter: false });
-    expect(classesOf(mod)).toEqual([]);
-  });
-
   it('applies the same defaults to forRootAsync', () => {
-    const names = classesOf(ObservabilityModule.forRootAsync({ useFactory: () => ({}) }));
-    expect(names).toContain('ResponseBodyInterceptor');
-    expect(names).not.toContain('RequestExceptionFilter');
+    const mod = ObservabilityModule.forRootAsync({ useFactory: () => ({}) });
+    expect(classesOf(mod)).toEqual(['ResponseBodyInterceptor']);
   });
 
   it('honours the options on forRootAsync', () => {
-    const mod = ObservabilityModule.forRootAsync({
-      useFactory: () => ({}),
-      interceptor: false,
-      exceptionFilter: true,
-    });
-    expect(classesOf(mod)).toEqual(['RequestExceptionFilter']);
+    const mod = ObservabilityModule.forRootAsync({ useFactory: () => ({}), interceptor: false });
+    expect(classesOf(mod)).toEqual([]);
   });
 });

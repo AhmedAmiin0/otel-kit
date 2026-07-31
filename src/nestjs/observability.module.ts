@@ -1,10 +1,9 @@
 import { Global, Module, type DynamicModule, type Provider } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { defineConfig } from '../core/config/define-config';
 import type { ObservabilityConfig, ObservabilityConfigInput } from '../core/config/types';
 import { OBSERVABILITY_CONFIG } from './tokens';
 import { ResponseBodyInterceptor } from './response-body.interceptor';
-import { RequestExceptionFilter } from './request-exception.filter';
 import { TelemetryService } from './telemetry.service';
 
 /** Structural stand-in for nestjs-pino's Params, so this file needs no pino types. */
@@ -20,14 +19,6 @@ interface ProviderOptions {
    * `logging.responseBody`.
    */
   interceptor?: boolean;
-  /**
-   * Register RequestExceptionFilter as a global filter. Off by default, and
-   * rarely what you want: APP_FILTER is not cumulative, so a global filter
-   * registered here takes over exception handling for the whole application
-   * and stops your own filter from ever running. The interceptor already
-   * covers route backfill and error-body capture without that side effect.
-   */
-  exceptionFilter?: boolean;
 }
 
 export interface ObservabilityModuleOptions extends ProviderOptions {
@@ -84,18 +75,10 @@ const httpClientImports = (
   return [HttpModule];
 };
 
-const requestProviders = (opts: ProviderOptions): Provider[] => {
-  const providers: Provider[] = [];
-
-  if (opts.interceptor !== false) {
-    providers.push({ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor });
-  }
-  if (opts.exceptionFilter === true) {
-    providers.push({ provide: APP_FILTER, useClass: RequestExceptionFilter });
-  }
-
-  return providers;
-};
+const requestProviders = (opts: ProviderOptions): Provider[] =>
+  opts.interceptor === false
+    ? []
+    : [{ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor }];
 
 const httpClientProviders = (config: ObservabilityConfig): Provider[] => {
   if (!httpClientEnabled(config)) return [];
