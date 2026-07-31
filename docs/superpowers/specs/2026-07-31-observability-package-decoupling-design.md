@@ -108,7 +108,7 @@ first and the `.env` file would silently stop applying.
 ## Decisions
 
 | Decision | Choice | Rationale |
-|---|---|---|
+| --- | --- | --- |
 | Framework scope | Framework-agnostic core, NestJS as an optional subpath export | Widest audience without abandoning the existing Nest consumers |
 | Logging | Pluggable `ObsLogger` interface, pino binding under `./pino` | Removes `pino`, `pino-http`, `nestjs-pino` from the required tree |
 | Exporters | `console`, `prometheus`, `otlp-http`, `otlp-grpc`, `otlp-proto`, `none`, plus BYO instance or factory | Covers dev, pull-based metrics, and vendor backends |
@@ -121,7 +121,7 @@ first and the `.env` file would silently stop applying.
 
 ### Entry points
 
-```
+```text
 @yourscope/observability
 ├─ "."          core     config, redaction, serializers, telemetry facade
 ├─ "./node"     node     NodeSDK bootstrap, instrumentation resolver, exporter registry
@@ -410,7 +410,7 @@ The interceptor and exception filter change only their injection token. Their lo
 
 Unchanged in substance; the difference is where the wiring decisions are made.
 
-```
+```text
 process.env ─┐
              ├─> defineConfig() ─> ObservabilityConfig ─┬─> resolveInstrumentations() ─> Instrumentation[]
 overrides ───┘                                          ├─> resolveExporters()        ─> exporters / readers
