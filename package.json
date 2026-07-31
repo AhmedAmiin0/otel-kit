@@ -18,11 +18,11 @@
   "author": "Ahmed Amin",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ahmedamin/otel-kit.git"
+    "url": "git+https://github.com/AhmedAmiin0/observability.git"
   },
-  "homepage": "https://github.com/ahmedamin/otel-kit#readme",
+  "homepage": "https://github.com/AhmedAmiin0/observability#readme",
   "bugs": {
-    "url": "https://github.com/ahmedamin/otel-kit/issues"
+    "url": "https://github.com/AhmedAmiin0/observability/issues"
   },
   "engines": {
     "node": ">=18"
