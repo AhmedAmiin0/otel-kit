@@ -139,3 +139,48 @@ describe('request-path providers', () => {
     expect(classesOf(mod)).toEqual([]);
   });
 });
+
+
+describe('missing nestjs-pino', () => {
+  // The module must never silently produce no logging: that is indistinguishable
+  // from a misconfiguration and gives the user nothing to act on.
+  const forRootWithoutPino = (options: Record<string, unknown>): string[] => {
+    const lines: string[] = [];
+    const warn = jest.spyOn(console, 'warn').mockImplementation((l: unknown) => {
+      lines.push(String(l));
+    });
+
+    jest.isolateModules(() => {
+      jest.doMock('nestjs-pino', () => {
+        throw new Error("Cannot find module 'nestjs-pino'");
+      });
+      const mod = require('./observability.module') as typeof import('./observability.module');
+      mod.ObservabilityModule.forRoot(options as never);
+    });
+
+    warn.mockRestore();
+    return lines;
+  };
+
+  const quiet = { config: { diagnostics: { level: 'warn' }, logging: { httpClient: false } } };
+
+  it('says what to install when a customizer was passed', () => {
+    const lines = forRootWithoutPino({ ...quiet, logger: (d: unknown) => d });
+    expect(lines.join(' ')).toContain('nestjs-pino');
+  });
+
+  it('stays silent when the caller opted out explicitly', () => {
+    expect(forRootWithoutPino({ ...quiet, logger: false })).toEqual([]);
+  });
+
+  it('registers no logger module either way', () => {
+    jest.isolateModules(() => {
+      jest.doMock('nestjs-pino', () => {
+        throw new Error("Cannot find module 'nestjs-pino'");
+      });
+      const mod = require('./observability.module') as typeof import('./observability.module');
+      const built = mod.ObservabilityModule.forRoot(quiet as never);
+      expect(built.imports ?? []).toEqual([]);
+    });
+  });
+});

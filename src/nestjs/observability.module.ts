@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { defineConfig } from '../core/config/define-config';
+import { createDiagnostics } from '../core/diagnostics';
 import type { ObservabilityConfig, ObservabilityConfigInput } from '../core/config/types';
 import { OBSERVABILITY_CONFIG } from './tokens';
 import { ResponseBodyInterceptor } from './response-body.interceptor';
@@ -50,12 +51,12 @@ export interface ObservabilityModuleAsyncOptions extends ProviderOptions {
   useFactory: (...args: never[]) => ObservabilityConfigInput | Promise<ObservabilityConfigInput>;
 }
 
-const canResolve = (id: string): boolean => {
+/** Loads an optional peer, or undefined when it is absent. */
+const loadOptional = <T>(id: string): T | undefined => {
   try {
-    require.resolve(id);
-    return true;
+    return require(id) as T;
   } catch {
-    return false;
+    return undefined;
   }
 };
 
@@ -69,26 +70,37 @@ const loggerImports = (
 ): NonNullable<DynamicModule['imports']> => {
   if (logger === false) return [];
   if (isDynamicModule(logger)) return [logger];
-  if (!canResolve('nestjs-pino')) return [];
 
-  const { LoggerModule } = require('nestjs-pino') as typeof import('nestjs-pino');
+  const pino = loadOptional<typeof import('nestjs-pino')>('nestjs-pino');
+
+  if (!pino) {
+    // Never silently produce no logging. A caller who passed a customizer
+    // clearly wants pino, so that is a warning; otherwise it is a default that
+    // simply does not apply here.
+    createDiagnostics(config.diagnostics.level).log(
+      logger === undefined ? 'debug' : 'warn',
+      'request logging is off: install nestjs-pino to enable it, ' +
+        'or pass `logger: false` to silence this',
+    );
+    return [];
+  }
+
   const { buildPinoConfig } = require('../pino/pino.config') as typeof import('../pino/pino.config');
 
   const defaults = buildPinoConfig(config) as PinoParams;
   const params = typeof logger === 'function' ? logger(defaults) : defaults;
 
-  return [LoggerModule.forRoot(params as Parameters<typeof LoggerModule.forRoot>[0])];
+  return [pino.LoggerModule.forRoot(params as Parameters<typeof pino.LoggerModule.forRoot>[0])];
 };
 
-const httpClientEnabled = (config: ObservabilityConfig): boolean =>
-  config.logging.httpClient && canResolve('@nestjs/axios');
+const axiosModule = (config: ObservabilityConfig): typeof import('@nestjs/axios') | undefined =>
+  config.logging.httpClient ? loadOptional<typeof import('@nestjs/axios')>('@nestjs/axios') : undefined;
 
 const httpClientImports = (
   config: ObservabilityConfig,
 ): NonNullable<DynamicModule['imports']> => {
-  if (!httpClientEnabled(config)) return [];
-  const { HttpModule } = require('@nestjs/axios') as typeof import('@nestjs/axios');
-  return [HttpModule];
+  const axios = axiosModule(config);
+  return axios ? [axios.HttpModule] : [];
 };
 
 const requestProviders = ({ interceptor }: ProviderOptions): Provider[] => {
@@ -105,7 +117,7 @@ const requestProviders = ({ interceptor }: ProviderOptions): Provider[] => {
 };
 
 const httpClientProviders = (config: ObservabilityConfig): Provider[] => {
-  if (!httpClientEnabled(config)) return [];
+  if (!axiosModule(config)) return [];
   const { HttpClientLogger } =
     require('./http-client.logger') as typeof import('./http-client.logger');
   return [HttpClientLogger];
