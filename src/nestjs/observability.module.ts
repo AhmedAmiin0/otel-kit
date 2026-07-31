@@ -74,10 +74,18 @@ const httpClientImports = (
   return [HttpModule];
 };
 
-const registerProviders = (opts: { interceptor: boolean; filter: boolean }): Provider[] => [
-  ...(opts.interceptor ? [{ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor }] : []),
-  ...(opts.filter ? [{ provide: APP_FILTER, useClass: RequestExceptionFilter }] : []),
-];
+const requestProviders = (opts: { interceptor: boolean; filter: boolean }): Provider[] => {
+  const providers: Provider[] = [];
+
+  if (opts.interceptor) {
+    providers.push({ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor });
+  }
+  if (opts.filter) {
+    providers.push({ provide: APP_FILTER, useClass: RequestExceptionFilter });
+  }
+
+  return providers;
+};
 
 const httpClientProviders = (config: ObservabilityConfig): Provider[] => {
   if (!httpClientEnabled(config)) return [];
@@ -100,7 +108,7 @@ export class ObservabilityModule {
       providers: [
         { provide: OBSERVABILITY_CONFIG, useValue: config },
         TelemetryService,
-        ...registerProviders({
+        ...requestProviders({
           interceptor: options.responseBodyInterceptor ?? config.logging.responseBody,
           filter: options.exceptionFilter ?? true,
         }),
@@ -123,7 +131,7 @@ export class ObservabilityModule {
           useFactory: async (...args: never[]) => defineConfig(await options.useFactory(...args)),
         },
         TelemetryService,
-        ...registerProviders({
+        ...requestProviders({
           interceptor: options.responseBodyInterceptor ?? true,
           filter: options.exceptionFilter ?? true,
         }),
