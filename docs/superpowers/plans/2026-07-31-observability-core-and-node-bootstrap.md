@@ -3474,10 +3474,21 @@ Expected: every test passes and `dist/` builds clean. If a Nest file fails to co
 - [ ] **Step 9: Manual smoke check**
 
 ```bash
-node -e "process.env.OTEL_TRACES_EXPORTER='console'; process.env.OTEL_METRICS_EXPORTER='none'; process.env.OTEL_LOGS_EXPORTER='none'; process.env.OTEL_DIAG_LEVEL='debug'; require('./dist/register.js'); const {withSpan}=require('./dist/core/index.js'); withSpan('smoke', async()=>1).then(()=>setTimeout(()=>process.exit(0),500));"
+OTEL_SERVICE_NAME=smoke-svc OTEL_TRACES_EXPORTER=console \
+OTEL_METRICS_EXPORTER=none OTEL_LOGS_EXPORTER=none OTEL_DIAG_LEVEL=debug \
+node -e "
+const { handle } = require('./dist/register.js');
+const { withSpan } = require('./dist/core/index.js');
+(async () => {
+  await withSpan('smoke-span', async () => 1);
+  await handle.sdk.shutdown();
+})();
+"
 ```
 
-Expected: diagnostic lines naming which instrumentations were skipped and why, followed by a `smoke` span printed to the console. This is the proof that the package works with no collector running.
+Expected: diagnostic lines naming which instrumentations were skipped and why, followed by a `smoke-span` printed to the console carrying `instrumentationScope: { name: 'smoke-svc' }`. This is the proof that the package works with no collector running.
+
+The explicit `sdk.shutdown()` is required, not decorative. `NodeSDK` wraps `traceExporter` in a `BatchSpanProcessor`, so spans are buffered; ending the process with `setTimeout(process.exit)` kills it before the batch flushes and prints nothing.
 
 - [ ] **Step 10: Commit**
 

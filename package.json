@@ -11,16 +11,32 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./bootstrap": {
-      "@libs/source": "./src/bootstrap.ts",
-      "types": "./dist/bootstrap.d.ts",
-      "default": "./dist/bootstrap.js"
+    "./core": {
+      "@libs/source": "./src/core/index.ts",
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
+    "./node": {
+      "@libs/source": "./src/node/index.ts",
+      "types": "./dist/node/index.d.ts",
+      "default": "./dist/node/index.js"
+    },
+    "./register": {
+      "@libs/source": "./src/register.ts",
+      "types": "./dist/register.d.ts",
+      "default": "./dist/register.js"
     }
   },
   "typesVersions": {
     "*": {
-      "bootstrap": [
-        "./dist/bootstrap.d.ts"
+      "core": [
+        "./dist/core/index.d.ts"
+      ],
+      "node": [
+        "./dist/node/index.d.ts"
+      ],
+      "register": [
+        "./dist/register.d.ts"
       ],
       "*": [
         "./dist/index.d.ts"
@@ -61,7 +77,6 @@
     "@opentelemetry/instrumentation-nestjs-core": "^0.67.0",
     "@opentelemetry/instrumentation-typeorm": "^0.21.0",
     "@opentelemetry/sdk-metrics": "^2.10.0",
-    "dotenv": "^17.2.1",
     "nestjs-pino": "^4.6.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
