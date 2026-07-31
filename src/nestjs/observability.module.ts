@@ -7,10 +7,27 @@ import { RequestBodyInterceptor } from './request-body.interceptor';
 import { RequestExceptionFilter } from './request-exception.filter';
 import { TelemetryService } from './telemetry.service';
 
+/**
+ * Controls the request logger.
+ *
+ * - omitted: register nestjs-pino with the built-in config, if it is installed
+ * - `false`: register no logger module; bring your own however you like
+ * - function: receive the built-in pino config and return the one to use
+ * - module: register this module instead (winston, a custom logger, anything)
+ */
+export type LoggerOption =
+  | false
+  | ((defaults: PinoParams) => PinoParams)
+  | DynamicModule;
+
+/** Structural stand-in for nestjs-pino's Params, so this file needs no pino types. */
+export type PinoParams = Record<string, unknown>;
+
 export interface ObservabilityModuleOptions {
   global?: boolean;
   /** Telemetry configuration, layered over environment variables and defaults. */
   config?: ObservabilityConfigInput;
+  logger?: LoggerOption;
 }
 
 export interface ObservabilityModuleAsyncOptions {
@@ -29,18 +46,32 @@ const canResolve = (id: string): boolean => {
   }
 };
 
+const isDynamicModule = (value: unknown): value is DynamicModule =>
+  typeof value === 'object' && value !== null && 'module' in value;
+
 /**
- * Loads the pino logger module only when nestjs-pino is actually installed.
+ * Resolves the request logger.
  *
- * Keeps pino out of the required dependency tree: a consumer without it gets
- * tracing and metrics, and simply no request logging.
+ * The built-in pino wiring is a default, not a mandate: pass `logger: false`
+ * to opt out entirely, a function to adjust the generated config, or your own
+ * module to replace it. pino stays out of the required dependency tree, so a
+ * consumer without it gets tracing and metrics and no request logging.
  */
-const pinoImports = (config: ObservabilityConfig): NonNullable<DynamicModule['imports']> => {
+const loggerImports = (
+  config: ObservabilityConfig,
+  logger: LoggerOption | undefined,
+): NonNullable<DynamicModule['imports']> => {
+  if (logger === false) return [];
+  if (isDynamicModule(logger)) return [logger];
   if (!canResolve('nestjs-pino')) return [];
 
   const { LoggerModule } = require('nestjs-pino') as typeof import('nestjs-pino');
   const { buildPinoConfig } = require('../pino/pino.config') as typeof import('../pino/pino.config');
-  return [LoggerModule.forRoot(buildPinoConfig(config))];
+
+  const defaults = buildPinoConfig(config) as PinoParams;
+  const params = typeof logger === 'function' ? logger(defaults) : defaults;
+
+  return [LoggerModule.forRoot(params as Parameters<typeof LoggerModule.forRoot>[0])];
 };
 
 const httpClientEnabled = (config: ObservabilityConfig): boolean =>
@@ -73,7 +104,7 @@ export class ObservabilityModule {
     return {
       module: ObservabilityModule,
       global: options.global ?? true,
-      imports: [...pinoImports(config), ...httpClientImports(config)],
+      imports: [...loggerImports(config, options.logger), ...httpClientImports(config)],
       providers: [
         { provide: OBSERVABILITY_CONFIG, useValue: config },
         TelemetryService,

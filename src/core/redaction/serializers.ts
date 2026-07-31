@@ -1,12 +1,18 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { Level } from 'pino';
-import type { ReqId } from 'pino-http';
+/**
+ * Structural equivalents of pino's `Level` and pino-http's `ReqId`.
+ *
+ * Declared here so core carries no dependency on pino, not even a type-only
+ * one. Any logger with the same level names satisfies this.
+ */
+export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+export type RequestId = string | number | object;
 import type { LoggingConfig, RedactionConfig } from '../config/types';
 import { readCapturedBody } from './body-capture';
 import { redactAndSerialize } from './redact';
 
 interface RequestLike extends IncomingMessage {
-  id: ReqId;
+  id: RequestId;
   body?: unknown;
   originalUrl?: string;
   raw?: { body?: unknown };
@@ -48,7 +54,7 @@ export const httpLogLevel = (
   _req: IncomingMessage,
   res: ServerResponse,
   err?: Error,
-): Level | 'silent' => {
+): LogLevel | 'silent' => {
   if (err || res.statusCode >= HTTP_SERVER_ERROR) return 'error';
   if (res.statusCode >= HTTP_CLIENT_ERROR) return 'warn';
   if (res.statusCode >= HTTP_REDIRECT) return 'silent';
