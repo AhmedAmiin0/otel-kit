@@ -152,6 +152,27 @@ const app = await NestFactory.create(AppModule, { bufferLogs: true });
 useObservabilityLogger(app);
 ```
 
+The built-in pino wiring is a default, not a requirement. Adjust it, replace it, or turn it off:
+
+```ts
+// tweak the generated config — you get the defaults and return what you want
+ObservabilityModule.forRoot({
+  logger: (defaults) => ({
+    ...defaults,
+    pinoHttp: { ...defaults.pinoHttp, level: 'debug', transport: myTransport },
+  }),
+});
+
+// bring a different logger entirely
+ObservabilityModule.forRoot({ logger: WinstonModule.forRoot(myOptions) });
+
+// no request logging; tracing and metrics still work
+ObservabilityModule.forRoot({ logger: false });
+```
+
+The redaction helpers are logger-agnostic, so they keep working whichever you choose — import
+`redactAndSerialize` and `buildSerializers` from `otel-kit/core`.
+
 ## Redaction
 
 Request and response bodies are redacted before they are logged. Matching keys are replaced, output
