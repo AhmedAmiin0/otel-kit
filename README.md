@@ -176,26 +176,39 @@ pino is a convenience, not a requirement. Everything that builds a log record li
 `otel-kit/core` and depends on nothing but Node's `http` types, so winston, bunyan, or your own
 wrapper get the same redaction, body capture, and level mapping.
 
-`ObsLogger` is the whole interface — four methods and `child`:
+winston has a binding of its own:
 
 ```ts
-import { logRequest } from 'otel-kit/core';
 import winston from 'winston';
+import { createWinstonLogger } from 'otel-kit/winston';
+import { logRequest, defineConfig } from 'otel-kit/core';
 
-const wl = winston.createLogger({ /* your transports */ });
-
-const adapter = {
-  debug: (o, m) => wl.debug(m ?? '', o),
-  info: (o, m) => wl.info(m ?? '', o),
-  warn: (o, m) => wl.warn(m ?? '', o),
-  error: (o, m) => wl.error(m ?? '', o),
-  child: () => adapter,
-};
+const config = defineConfig();
+const logger = createWinstonLogger(
+  winston.createLogger({
+    level: 'info',
+    format: winston.format.json(),
+    transports: [new winston.transports.Console()],
+  }),
+);
 
 app.use((req, res, next) => {
-  res.on('finish', () => logRequest(adapter, req, res, config));
+  res.on('finish', () => logRequest(logger, req, res, config));
   next();
 });
+```
+
+Anything else needs five lines. `ObsLogger` is four methods and `child`, and the only wrinkle is
+that most loggers take `(message, meta)` where this takes `(obj, msg)`:
+
+```ts
+const adapter: ObsLogger = {
+  debug: (obj, msg) => myLogger.debug(msg ?? '', obj),
+  info: (obj, msg) => myLogger.info(msg ?? '', obj),
+  warn: (obj, msg) => myLogger.warn(msg ?? '', obj),
+  error: (obj, msg) => myLogger.error(msg ?? '', obj),
+  child: () => adapter,
+};
 ```
 
 That gives you the same records pino produces: redacted request and response bodies, sanitized
@@ -305,6 +318,7 @@ Defaults cover `password`, `token`, `secret`, `accessToken`, `refreshToken`, `ap
 | `otel-kit/register` | Preload entry, starts everything | OTel SDK packages |
 | `otel-kit/nestjs` | Module, interceptor, exception filter, HTTP client logger | `@nestjs/common`, `@nestjs/core` |
 | `otel-kit/pino` | pino binding and Nest logger wiring | `pino`, `nestjs-pino` |
+| `otel-kit/winston` | winston binding | `winston` |
 
 `otel-kit/core` is framework-free and pulls in nothing but `@opentelemetry/api` — enforced by a test,
 not just by convention.
