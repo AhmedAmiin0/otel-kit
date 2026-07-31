@@ -173,6 +173,34 @@ ObservabilityModule.forRoot({ logger: false });
 The redaction helpers are logger-agnostic, so they keep working whichever you choose — import
 `redactAndSerialize` and `buildSerializers` from `otel-kit/core`.
 
+### Global providers
+
+The module registers two things on the request path, both optional.
+
+**Response-body interceptor.** Captures response bodies so they can be logged. It follows
+`logging.responseBody`, so turning that off skips registration entirely rather than installing an
+interceptor that runs on every request and does nothing:
+
+```bash
+LOG_RESPONSE_BODY=false
+```
+
+```ts
+ObservabilityModule.forRoot({ config: { logging: { responseBody: false } } });
+ObservabilityModule.forRoot({ responseBodyInterceptor: false });   // explicit override
+```
+
+**Exception filter.** Captures error response bodies, and backfills the span route for requests that
+matched no handler — without it those traces are named generically. It stays on when the interceptor
+is off. Disable it if you register your own global filter and they conflict:
+
+```ts
+ObservabilityModule.forRoot({ exceptionFilter: false });
+```
+
+Both options work on `forRootAsync` too, where they default to `true` because the config isn't known
+until the factory runs.
+
 ## Redaction
 
 Request and response bodies are redacted before they are logged. Matching keys are replaced, output

@@ -28,6 +28,20 @@ export interface ObservabilityModuleOptions {
   /** Telemetry configuration, layered over environment variables and defaults. */
   config?: ObservabilityConfigInput;
   logger?: LoggerOption;
+  /**
+   * Register the global interceptor that captures response bodies for logging.
+   * Defaults to `logging.responseBody`, so turning that off — via config or
+   * LOG_RESPONSE_BODY=false — also stops the interceptor being installed
+   * rather than leaving it registered and inert on every request.
+   */
+  responseBodyInterceptor?: boolean;
+  /**
+   * Register the global exception filter. On by default: besides capturing
+   * error bodies it backfills the span route for requests that matched no
+   * handler, which is what keeps those traces from being named generically.
+   * Set false if you register your own global filter and it conflicts.
+   */
+  exceptionFilter?: boolean;
 }
 
 export interface ObservabilityModuleAsyncOptions {
@@ -35,6 +49,9 @@ export interface ObservabilityModuleAsyncOptions {
   imports?: DynamicModule['imports'];
   inject?: unknown[];
   useFactory: (...args: never[]) => ObservabilityConfigInput | Promise<ObservabilityConfigInput>;
+  /** Defaults to true — the config is not known until the factory runs. */
+  responseBodyInterceptor?: boolean;
+  exceptionFilter?: boolean;
 }
 
 const canResolve = (id: string): boolean => {
@@ -85,6 +102,20 @@ const httpClientImports = (
   return [HttpModule];
 };
 
+/**
+ * The two global request-path providers, each independently opt-out.
+ *
+ * `interceptor` is undefined when the caller did not say, in which case the
+ * decision falls to the resolved config.
+ */
+const requestProviders = (opts: {
+  interceptor: boolean;
+  filter: boolean;
+}): Provider[] => [
+  ...(opts.interceptor ? [{ provide: APP_INTERCEPTOR, useClass: RequestBodyInterceptor }] : []),
+  ...(opts.filter ? [{ provide: APP_FILTER, useClass: RequestExceptionFilter }] : []),
+];
+
 const httpClientProviders = (config: ObservabilityConfig): Provider[] => {
   if (!httpClientEnabled(config)) return [];
   const { HttpClientLogger } =
@@ -108,8 +139,10 @@ export class ObservabilityModule {
       providers: [
         { provide: OBSERVABILITY_CONFIG, useValue: config },
         TelemetryService,
-        { provide: APP_INTERCEPTOR, useClass: RequestBodyInterceptor },
-        { provide: APP_FILTER, useClass: RequestExceptionFilter },
+        ...requestProviders({
+          interceptor: options.responseBodyInterceptor ?? config.logging.responseBody,
+          filter: options.exceptionFilter ?? true,
+        }),
         ...clientProviders,
       ],
       exports: [OBSERVABILITY_CONFIG, TelemetryService, ...clientProviders],
@@ -129,8 +162,10 @@ export class ObservabilityModule {
           useFactory: async (...args: never[]) => defineConfig(await options.useFactory(...args)),
         },
         TelemetryService,
-        { provide: APP_INTERCEPTOR, useClass: RequestBodyInterceptor },
-        { provide: APP_FILTER, useClass: RequestExceptionFilter },
+        ...requestProviders({
+          interceptor: options.responseBodyInterceptor ?? true,
+          filter: options.exceptionFilter ?? true,
+        }),
       ],
       exports: [OBSERVABILITY_CONFIG, TelemetryService],
     };

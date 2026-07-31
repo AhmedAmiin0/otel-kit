@@ -59,8 +59,74 @@ describe('ObservabilityModule.forRoot', () => {
     ]);
   });
 
-  it('always registers the interceptor and exception filter', () => {
-    const providers = ObservabilityModule.forRoot({ logger: false }).providers ?? [];
-    expect(providers.length).toBeGreaterThanOrEqual(4);
+});
+
+describe('request-path providers', () => {
+  const classesOf = (mod: DynamicModule): string[] =>
+    (mod.providers ?? []).flatMap((p) => {
+      const useClass = (p as { useClass?: { name: string } }).useClass;
+      return useClass ? [useClass.name] : [];
+    });
+
+  it('registers both by default', () => {
+    const names = classesOf(ObservabilityModule.forRoot());
+    expect(names).toContain('RequestBodyInterceptor');
+    expect(names).toContain('RequestExceptionFilter');
+  });
+
+  it('skips the interceptor when response body logging is off in config', () => {
+    const mod = ObservabilityModule.forRoot({ config: { logging: { responseBody: false } } });
+    expect(classesOf(mod)).not.toContain('RequestBodyInterceptor');
+  });
+
+  it('skips the interceptor when LOG_RESPONSE_BODY is false in the environment', () => {
+    process.env['LOG_RESPONSE_BODY'] = 'false';
+    try {
+      expect(classesOf(ObservabilityModule.forRoot())).not.toContain('RequestBodyInterceptor');
+    } finally {
+      delete process.env['LOG_RESPONSE_BODY'];
+    }
+  });
+
+  it('keeps the exception filter when the interceptor is skipped', () => {
+    const mod = ObservabilityModule.forRoot({ config: { logging: { responseBody: false } } });
+    expect(classesOf(mod)).toContain('RequestExceptionFilter');
+  });
+
+  it('lets an explicit option override the config for the interceptor', () => {
+    const mod = ObservabilityModule.forRoot({
+      config: { logging: { responseBody: false } },
+      responseBodyInterceptor: true,
+    });
+    expect(classesOf(mod)).toContain('RequestBodyInterceptor');
+  });
+
+  it('skips the exception filter when asked', () => {
+    const names = classesOf(ObservabilityModule.forRoot({ exceptionFilter: false }));
+    expect(names).not.toContain('RequestExceptionFilter');
+    expect(names).toContain('RequestBodyInterceptor');
+  });
+
+  it('can skip both', () => {
+    const mod = ObservabilityModule.forRoot({
+      responseBodyInterceptor: false,
+      exceptionFilter: false,
+    });
+    expect(classesOf(mod)).toEqual([]);
+  });
+
+  it('applies the same options to forRootAsync', () => {
+    const mod = ObservabilityModule.forRootAsync({
+      useFactory: () => ({}),
+      responseBodyInterceptor: false,
+      exceptionFilter: false,
+    });
+    expect(classesOf(mod)).toEqual([]);
+  });
+
+  it('registers both by default in forRootAsync', () => {
+    const names = classesOf(ObservabilityModule.forRootAsync({ useFactory: () => ({}) }));
+    expect(names).toContain('RequestBodyInterceptor');
+    expect(names).toContain('RequestExceptionFilter');
   });
 });
