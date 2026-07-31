@@ -2,6 +2,9 @@ export { ObservabilityModule } from './observability.module';
 export type {
   ObservabilityModuleOptions,
   ObservabilityModuleAsyncOptions,
+  InterceptorOption,
+  LoggerOption,
+  PinoParams,
 } from './observability.module';
 export { OBSERVABILITY_CONFIG } from './tokens';
 export { TelemetryService } from './telemetry.service';

@@ -1,4 +1,11 @@
-import { Global, Module, type DynamicModule, type Provider } from '@nestjs/common';
+import {
+  Global,
+  Module,
+  type DynamicModule,
+  type NestInterceptor,
+  type Provider,
+  type Type,
+} from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { defineConfig } from '../core/config/define-config';
 import type { ObservabilityConfig, ObservabilityConfigInput } from '../core/config/types';
@@ -12,13 +19,22 @@ export type PinoParams = Record<string, unknown>;
 /** `false` for none, a function to adjust the built-in config, or a module to use instead. */
 export type LoggerOption = false | ((defaults: PinoParams) => PinoParams) | DynamicModule;
 
+/**
+ * How the request-path interceptor is registered.
+ *
+ * - omitted / `true`: the built-in ResponseBodyInterceptor
+ * - `false`: none
+ * - a class: registered under APP_INTERCEPTOR in place of the built-in
+ * - a provider: used verbatim, so useFactory and useExisting work too
+ */
+export type InterceptorOption = boolean | Type<NestInterceptor> | Provider;
+
 interface ProviderOptions {
   /**
-   * The interceptor captures response bodies and backfills the span route on
-   * errors. On by default; body capture itself still follows
-   * `logging.responseBody`.
+   * The built-in interceptor captures response bodies and backfills the span
+   * route on errors. Body capture itself still follows `logging.responseBody`.
    */
-  interceptor?: boolean;
+  interceptor?: InterceptorOption;
 }
 
 export interface ObservabilityModuleOptions extends ProviderOptions {
@@ -75,10 +91,18 @@ const httpClientImports = (
   return [HttpModule];
 };
 
-const requestProviders = (opts: ProviderOptions): Provider[] =>
-  opts.interceptor === false
-    ? []
-    : [{ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor }];
+const requestProviders = ({ interceptor }: ProviderOptions): Provider[] => {
+  if (interceptor === false) return [];
+  if (interceptor === undefined || interceptor === true) {
+    return [{ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor }];
+  }
+
+  // A bare class means "use this as the interceptor"; anything else is already
+  // a provider and is registered as given.
+  return typeof interceptor === 'function'
+    ? [{ provide: APP_INTERCEPTOR, useClass: interceptor as Type<NestInterceptor> }]
+    : [interceptor];
+};
 
 const httpClientProviders = (config: ObservabilityConfig): Provider[] => {
   if (!httpClientEnabled(config)) return [];

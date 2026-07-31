@@ -180,10 +180,30 @@ on the error path, backfills the span route for requests that matched no handler
 those traces are named generically.
 
 `LOG_RESPONSE_BODY=false` stops bodies being captured but leaves the interceptor in place, since the
-route backfill is worth having either way. To remove it from the request path entirely:
+route backfill is worth having either way. The `interceptor` option takes it further — skip it,
+substitute your own class, or supply a provider outright:
 
 ```ts
-ObservabilityModule.forRoot({ interceptor: false });
+ObservabilityModule.forRoot({ interceptor: false });          // none
+ObservabilityModule.forRoot({ interceptor: MyInterceptor });  // your class instead
+
+// a full provider, so useFactory and useExisting work as usual
+ObservabilityModule.forRoot({
+  interceptor: {
+    provide: APP_INTERCEPTOR,
+    inject: [SomeService],
+    useFactory: (svc: SomeService) => new MyInterceptor(svc),
+  },
+});
+```
+
+Extending the built-in rather than replacing it works too, since it is exported:
+
+```ts
+import { ResponseBodyInterceptor } from 'otel-kit/nestjs';
+
+@Injectable()
+class MyInterceptor extends ResponseBodyInterceptor {}
 ```
 
 **No global exception filter.** This package deliberately registers none. `APP_FILTER` is not a

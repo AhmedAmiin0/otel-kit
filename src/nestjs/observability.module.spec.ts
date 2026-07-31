@@ -1,5 +1,12 @@
-import type { DynamicModule } from '@nestjs/common';
+import type {
+  CallHandler,
+  DynamicModule,
+  ExecutionContext,
+  NestInterceptor,
+} from '@nestjs/common';
+import type { Observable } from 'rxjs';
 import { ObservabilityModule } from './observability.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { OBSERVABILITY_CONFIG } from './tokens';
 
 const importsOf = (mod: DynamicModule): unknown[] => (mod.imports ?? []) as unknown[];
@@ -62,6 +69,11 @@ describe('ObservabilityModule.forRoot', () => {
 });
 
 describe('request-path providers', () => {
+  const providersOf = (mod: DynamicModule): unknown[] =>
+    (mod.providers ?? []).filter(
+      (p) => (p as { provide?: unknown }).provide === APP_INTERCEPTOR,
+    );
+
   const classesOf = (mod: DynamicModule): string[] =>
     (mod.providers ?? []).flatMap((p) => {
       const useClass = (p as { useClass?: { name: string } }).useClass;
@@ -81,6 +93,40 @@ describe('request-path providers', () => {
 
   it('skips the interceptor when asked', () => {
     expect(classesOf(ObservabilityModule.forRoot({ interceptor: false }))).toEqual([]);
+  });
+
+  it('registers the built-in when interceptor is true', () => {
+    expect(classesOf(ObservabilityModule.forRoot({ interceptor: true }))).toEqual([
+      'ResponseBodyInterceptor',
+    ]);
+  });
+
+  it('accepts a replacement interceptor class without a cast', () => {
+    class MyInterceptor implements NestInterceptor {
+      intercept(_ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
+        return next.handle();
+      }
+    }
+    const mod = ObservabilityModule.forRoot({ interceptor: MyInterceptor });
+
+    expect(classesOf(mod)).toEqual(['MyInterceptor']);
+    expect(providersOf(mod)[0]).toMatchObject({ provide: APP_INTERCEPTOR });
+  });
+
+  it('accepts a full provider and registers it verbatim', () => {
+    const provider = {
+      provide: APP_INTERCEPTOR,
+      useFactory: () => ({ intercept: (_c: unknown, next: { handle: () => unknown }) => next.handle() }),
+    };
+    const mod = ObservabilityModule.forRoot({ interceptor: provider });
+
+    expect(providersOf(mod)).toContain(provider);
+    expect(classesOf(mod)).toEqual([]);
+  });
+
+  it('lets a useExisting provider reuse an already-registered interceptor', () => {
+    const provider = { provide: APP_INTERCEPTOR, useExisting: 'MY_TOKEN' };
+    expect(providersOf(ObservabilityModule.forRoot({ interceptor: provider }))).toContain(provider);
   });
 
   it('applies the same defaults to forRootAsync', () => {
