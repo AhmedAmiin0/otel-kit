@@ -208,8 +208,14 @@ is truncated, and depth is capped so a cyclic or enormous payload cannot flood y
 
 ```bash
 LOG_RESPONSE_BODY_REDACT=password,token,secret,apiKey
-LOG_BODY_MAX_CHARS=500
+LOG_BODY_MAX_CHARS=500     # characters kept in the log line
+LOG_BODY_MAX_DEPTH=8       # how deep the walk descends
+LOG_BODY_MAX_NODES=1000    # how many values the walk visits
 ```
+
+`LOG_BODY_MAX_NODES` bounds the work, not just the output. Without it a large parsed upload would be
+copied in full and then thrown away by the character limit — on a 50k-node payload that is roughly
+38× more time spent for byte-identical output.
 
 Defaults cover `password`, `token`, `secret`, `accessToken`, `refreshToken`, `apiKey`, and
 `authorization`. The `authorization`, `cookie`, and `x-api-key` headers are always masked.

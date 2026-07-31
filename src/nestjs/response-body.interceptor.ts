@@ -14,7 +14,7 @@ import { storeCapturedBody } from '../core/redaction/body-capture';
 import { redactAndSerialize } from '../core/redaction/redact';
 
 @Injectable()
-export class RequestBodyInterceptor implements NestInterceptor {
+export class ResponseBodyInterceptor implements NestInterceptor {
   constructor(
     @Inject(OBSERVABILITY_CONFIG)
     private readonly config: ObservabilityConfig,

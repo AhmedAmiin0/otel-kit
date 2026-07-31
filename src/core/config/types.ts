@@ -13,6 +13,8 @@ export interface RedactionConfig {
   placeholder: string;
   bodyMaxChars: number;
   maxDepth: number;
+  /** Caps how many values the redaction walk visits, bounding work on huge payloads. */
+  maxNodes: number;
 }
 
 export interface LoggingConfig {

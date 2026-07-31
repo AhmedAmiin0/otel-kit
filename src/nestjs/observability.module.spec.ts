@@ -70,19 +70,19 @@ describe('request-path providers', () => {
 
   it('registers both by default', () => {
     const names = classesOf(ObservabilityModule.forRoot());
-    expect(names).toContain('RequestBodyInterceptor');
+    expect(names).toContain('ResponseBodyInterceptor');
     expect(names).toContain('RequestExceptionFilter');
   });
 
   it('skips the interceptor when response body logging is off in config', () => {
     const mod = ObservabilityModule.forRoot({ config: { logging: { responseBody: false } } });
-    expect(classesOf(mod)).not.toContain('RequestBodyInterceptor');
+    expect(classesOf(mod)).not.toContain('ResponseBodyInterceptor');
   });
 
   it('skips the interceptor when LOG_RESPONSE_BODY is false in the environment', () => {
     process.env['LOG_RESPONSE_BODY'] = 'false';
     try {
-      expect(classesOf(ObservabilityModule.forRoot())).not.toContain('RequestBodyInterceptor');
+      expect(classesOf(ObservabilityModule.forRoot())).not.toContain('ResponseBodyInterceptor');
     } finally {
       delete process.env['LOG_RESPONSE_BODY'];
     }
@@ -98,13 +98,13 @@ describe('request-path providers', () => {
       config: { logging: { responseBody: false } },
       responseBodyInterceptor: true,
     });
-    expect(classesOf(mod)).toContain('RequestBodyInterceptor');
+    expect(classesOf(mod)).toContain('ResponseBodyInterceptor');
   });
 
   it('skips the exception filter when asked', () => {
     const names = classesOf(ObservabilityModule.forRoot({ exceptionFilter: false }));
     expect(names).not.toContain('RequestExceptionFilter');
-    expect(names).toContain('RequestBodyInterceptor');
+    expect(names).toContain('ResponseBodyInterceptor');
   });
 
   it('can skip both', () => {
@@ -126,7 +126,7 @@ describe('request-path providers', () => {
 
   it('registers both by default in forRootAsync', () => {
     const names = classesOf(ObservabilityModule.forRootAsync({ useFactory: () => ({}) }));
-    expect(names).toContain('RequestBodyInterceptor');
+    expect(names).toContain('ResponseBodyInterceptor');
     expect(names).toContain('RequestExceptionFilter');
   });
 });

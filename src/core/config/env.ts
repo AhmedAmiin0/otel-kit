@@ -76,6 +76,7 @@ export const fromEnv = (env: NodeJS.ProcessEnv): ObservabilityConfigInput => {
     put(r, 'placeholder', env.LOG_REDACTED);
     put(r, 'bodyMaxChars', int(env.LOG_BODY_MAX_CHARS));
     put(r, 'maxDepth', int(env.LOG_BODY_MAX_DEPTH));
+    put(r, 'maxNodes', int(env.LOG_BODY_MAX_NODES));
   });
 
   section(out, 'traces', (t) => {

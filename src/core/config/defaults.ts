@@ -39,6 +39,7 @@ export const defaults = (env: NodeJS.ProcessEnv): ObservabilityConfig => ({
     placeholder: 'XXXXXXXXXXXXXXXX',
     bodyMaxChars: 500,
     maxDepth: 8,
+    maxNodes: 1000,
   },
   diagnostics: { level: 'none' },
 });

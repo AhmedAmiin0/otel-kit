@@ -3,7 +3,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { defineConfig } from '../core/config/define-config';
 import type { ObservabilityConfig, ObservabilityConfigInput } from '../core/config/types';
 import { OBSERVABILITY_CONFIG } from './tokens';
-import { RequestBodyInterceptor } from './request-body.interceptor';
+import { ResponseBodyInterceptor } from './response-body.interceptor';
 import { RequestExceptionFilter } from './request-exception.filter';
 import { TelemetryService } from './telemetry.service';
 
@@ -74,8 +74,8 @@ const httpClientImports = (
   return [HttpModule];
 };
 
-const requestProviders = (opts: { interceptor: boolean; filter: boolean }): Provider[] => [
-  ...(opts.interceptor ? [{ provide: APP_INTERCEPTOR, useClass: RequestBodyInterceptor }] : []),
+const registerProviders = (opts: { interceptor: boolean; filter: boolean }): Provider[] => [
+  ...(opts.interceptor ? [{ provide: APP_INTERCEPTOR, useClass: ResponseBodyInterceptor }] : []),
   ...(opts.filter ? [{ provide: APP_FILTER, useClass: RequestExceptionFilter }] : []),
 ];
 
@@ -100,7 +100,7 @@ export class ObservabilityModule {
       providers: [
         { provide: OBSERVABILITY_CONFIG, useValue: config },
         TelemetryService,
-        ...requestProviders({
+        ...registerProviders({
           interceptor: options.responseBodyInterceptor ?? config.logging.responseBody,
           filter: options.exceptionFilter ?? true,
         }),
@@ -123,7 +123,7 @@ export class ObservabilityModule {
           useFactory: async (...args: never[]) => defineConfig(await options.useFactory(...args)),
         },
         TelemetryService,
-        ...requestProviders({
+        ...registerProviders({
           interceptor: options.responseBodyInterceptor ?? true,
           filter: options.exceptionFilter ?? true,
         }),
