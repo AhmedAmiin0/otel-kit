@@ -60,7 +60,12 @@ src/register.ts                   side-effect preload entry
 test/fixtures/app/node_modules/fixture-lib/{package.json,index.js}
 ```
 
-**Modified:** `package.json`, `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`, `jest.config.cts`, `eslint.config.mjs`.
+**Modified:** `package.json`, `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`, `eslint.config.mjs`.
+
+**Renamed:** `jest.config.cts` → `jest.config.cjs`. Jest 29's config auto-discovery order is
+`['.js', '.ts', '.mjs', '.cjs', '.json']` — `.cts` is not in it, and `--config` rejects the
+extension outright, so a file named `jest.config.cts` is never loaded in any invocation form. The
+file's contents are plain `module.exports`, so `.cjs` is also the accurate extension.
 
 **Deleted at the end:** `src/helpers.ts`, `src/bootstrap.ts`, `src/bootstrap/`, `src/tracing/tracer.ts`, `src/logging/redact.ts`, `src/logging/serializers.ts`, `src/logging/body-capture.ts` — each only after its replacement is green and its importers are updated.
 
@@ -71,7 +76,8 @@ test/fixtures/app/node_modules/fixture-lib/{package.json,index.js}
 Nothing in this repo builds today. `tsconfig.json` extends `../../tsconfig.base.json`, `jest.config.cts` presets `../../jest.preset.js`, and `eslint.config.mjs` imports `../../eslint.config.mjs` — none of those parents exist. `node_modules/typescript/` is an empty directory. There is no lockfile and no jest. This task is a prerequisite for every other task.
 
 **Files:**
-- Modify: `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`, `jest.config.cts`, `eslint.config.mjs`, `package.json`
+- Modify: `tsconfig.json`, `tsconfig.lib.json`, `tsconfig.spec.json`, `eslint.config.mjs`, `package.json`
+- Rename: `jest.config.cts` → `jest.config.cjs` (see the rename note in File Structure)
 - Delete: `project.json` (Nx project descriptor referencing `../../node_modules/nx`)
 - Test: `src/core/smoke.spec.ts`
 
@@ -125,7 +131,7 @@ Nothing in this repo builds today. `tsconfig.json` extends `../../tsconfig.base.
     "composite": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "jest.config.cts"]
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }
 ```
 
@@ -147,7 +153,7 @@ Nothing in this repo builds today. `tsconfig.json` extends `../../tsconfig.base.
 
 - [ ] **Step 3: Make the jest config standalone**
 
-`jest.config.cts` — drop the missing preset:
+Rename `jest.config.cts` to `jest.config.cjs` (`git mv`), then drop the missing preset:
 
 ```javascript
 module.exports = {
