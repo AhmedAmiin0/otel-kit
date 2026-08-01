@@ -4,6 +4,6 @@ dist/*
 docs/*
 
 grafana/*
-otel_collector/*
+otel-collector/*
 docker-compose.yml
 Dockerfile
