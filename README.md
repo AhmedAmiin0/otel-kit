@@ -198,18 +198,25 @@ app.use((req, res, next) => {
 });
 ```
 
-Anything else needs five lines. `ObsLogger` is four methods and `child`, and the only wrinkle is
-that most loggers take `(message, meta)` where this takes `(obj, msg)`:
+Every other Node logger follows one of two argument conventions, and there is an adapter for each:
 
 ```ts
-const adapter: ObsLogger = {
-  debug: (obj, msg) => myLogger.debug(msg ?? '', obj),
-  info: (obj, msg) => myLogger.info(msg ?? '', obj),
-  warn: (obj, msg) => myLogger.warn(msg ?? '', obj),
-  error: (obj, msg) => myLogger.error(msg ?? '', obj),
-  child: () => adapter,
-};
+import { fromMessageFirst, fromObjectFirst } from 'otel-kit/core';
+
+fromMessageFirst(log4jsLogger);   // info(message, meta) — winston, log4js, consola, tslog
+fromObjectFirst(bunyanLogger);    // info(obj, msg)      — bunyan, pino
 ```
+
+| Logger | Adapter | Notes |
+| --- | --- | --- |
+| pino | none needed | already the `ObsLogger` shape |
+| bunyan | `fromObjectFirst` | native `child` bindings are preserved |
+| winston | `createWinstonLogger` or `fromMessageFirst` | |
+| log4js | `fromMessageFirst` | has no `child`; the adapter carries bindings itself |
+| consola, tslog | `fromMessageFirst` | tslog 5 is ESM-only, so it needs an ESM app |
+
+`fromMessageFirst` merges child bindings on its own rather than delegating, so `logger.child({ svc })`
+works even against loggers with no child concept.
 
 That gives you the same records pino produces: redacted request and response bodies, sanitized
 headers, correlation id, and `4xx → warn` / `5xx → error` levels. Excluded routes and `3xx` are

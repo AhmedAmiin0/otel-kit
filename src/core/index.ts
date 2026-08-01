@@ -26,6 +26,8 @@ export type { Diagnostics, DiagnosticSink, EmittableLevel } from './diagnostics'
 
 export { noopLogger } from './logger/noop';
 export { createConsoleLogger } from './logger/console';
+export { fromMessageFirst, fromObjectFirst } from './logger/adapt';
+export type { MessageFirstLogger, ObjectFirstLogger, Level } from './logger/adapt';
 export type { ObsLogger } from './logger/types';
 
 export {
