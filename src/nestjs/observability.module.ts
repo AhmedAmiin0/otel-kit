@@ -1,13 +1,8 @@
 import {
   Global,
-  Inject,
   Module,
-  Optional,
-  RequestMethod,
   type DynamicModule,
-  type MiddlewareConsumer,
   type NestInterceptor,
-  type NestModule,
   type Provider,
   type Type,
 } from '@nestjs/common';
@@ -17,7 +12,7 @@ import { createDiagnostics } from '../core/diagnostics';
 import type { ObservabilityConfig, ObservabilityConfigInput } from '../core/config/types';
 import type { ObsLogger } from '../core/logger/types';
 import { OBSERVABILITY_CONFIG, OBSERVABILITY_LOGGER } from './tokens';
-import { requestLoggerMiddleware } from './request-logger.middleware';
+import { RequestLoggerHook } from './request-logger.hook';
 import { ResponseBodyInterceptor } from './response-body.interceptor';
 import { TelemetryService } from './telemetry.service';
 
@@ -148,9 +143,16 @@ const interceptorProvider = (interceptor: InterceptorOption | undefined): Provid
     : [interceptor];
 };
 
-/** Publishes a supplied logger so the middleware and consumers can reach it. */
+/**
+ * Publishes a supplied logger and the hook that writes requests to it.
+ *
+ * RequestLoggerHook is registered alongside rather than separately so the two
+ * cannot get out of step: no logger, no hook.
+ */
 const loggerProvider = (logger: LoggerOption | undefined): Provider[] =>
-  isObsLogger(logger) ? [{ provide: OBSERVABILITY_LOGGER, useValue: logger }] : [];
+  isObsLogger(logger)
+    ? [{ provide: OBSERVABILITY_LOGGER, useValue: logger }, RequestLoggerHook]
+    : [];
 
 /** Every provider the module contributes, in one place. */
 const registerProviders = (
@@ -181,27 +183,7 @@ const registerProviders = (
 
 @Global()
 @Module({})
-export class ObservabilityModule implements NestModule {
-  constructor(
-    @Inject(OBSERVABILITY_CONFIG) private readonly config: ObservabilityConfig,
-    @Optional() @Inject(OBSERVABILITY_LOGGER) private readonly logger?: ObsLogger,
-  ) {}
-
-  /**
-   * Applied only when a logger instance was supplied. The nestjs-pino path
-   * brings its own middleware, and `logger: false` gets none at all.
-   *
-   * Config is injected rather than captured in forRoot so that forRootAsync,
-   * whose config is not known until its factory runs, logs the real thing.
-   */
-  configure(consumer: MiddlewareConsumer): void {
-    if (!this.logger) return;
-
-    consumer
-      .apply(requestLoggerMiddleware(this.logger, this.config))
-      .forRoutes({ path: '{/*splat}', method: RequestMethod.ALL });
-  }
-
+export class ObservabilityModule {
   static forRoot(options: ObservabilityModuleOptions = {}): DynamicModule {
     const config = defineConfig(options.config ?? {});
     const { providers, exports } = registerProviders(

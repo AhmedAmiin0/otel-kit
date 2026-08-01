@@ -144,7 +144,7 @@ config from `ConfigService` or another async source.
 
 #### Request logging
 
-Hand `logger` any logger instance and the module wires the request middleware itself. Nothing here
+Hand `logger` any logger instance and the module wires up request logging itself. Nothing here
 is pino-specific:
 
 ```ts
@@ -164,9 +164,15 @@ ObservabilityModule.forRoot({
 
 That produces the full record — redacted request and response bodies, sanitized headers, correlation
 id echoed onto the response, and `4xx → warn` / `5xx → error` levels — for winston, bunyan, log4js or
-anything else you adapt. It works the same on `forRootAsync`, where the middleware picks up whatever
-config your factory returned. The logger is also exported under `OBSERVABILITY_LOGGER` if you want to
-inject it elsewhere.
+anything else you adapt. It works the same on `forRootAsync`, where it picks up whatever config your
+factory returned. The logger is also exported under `OBSERVABILITY_LOGGER` if you want to inject it
+elsewhere.
+
+Logging attaches to the HTTP server's `request` event rather than to a Nest middleware, so it sees
+every request. Middleware registered through `MiddlewareConsumer` runs *after* the platform's body
+parser, which means a malformed JSON payload returns `400` without ever reaching it — the request
+would be missing from the log entirely, which is the one you would most want to find. The server
+event fires first, so those are logged like any other.
 
 The other forms `logger` accepts:
 
@@ -275,6 +281,10 @@ If no `HttpModule` is present the logger stays idle and says so at debug level. 
 **Response-body interceptor**, registered by default. It captures response bodies for logging and,
 on the error path, backfills the span route for requests that matched no handler — without that,
 those traces are named generically.
+
+It is not what writes the request log; the server hook does that, and keeps doing it if you turn the
+interceptor off. What the interceptor adds is the part the hook cannot see: a handler's return value
+before it has been serialized. Disable it and requests are still logged, without `res.body`.
 
 `LOG_RESPONSE_BODY=false` stops bodies being captured but leaves the interceptor in place, since the
 route backfill is worth having either way. The `interceptor` option takes it further — skip it,

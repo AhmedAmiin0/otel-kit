@@ -4,11 +4,12 @@ import { logRequest } from '../core/logger/request-logger';
 import type { ObsLogger } from '../core/logger/types';
 
 /**
- * Logs completed requests through any ObsLogger.
+ * Logs completed requests through any ObsLogger, as ordinary middleware.
  *
- * This is the logger-agnostic counterpart to the nestjs-pino path: it holds no
- * opinion about which logger it writes to, so winston, bunyan, log4js and pino
- * all reach the same record shape through the core adapters.
+ * Nest applications do not need this: passing `logger` to the module installs
+ * RequestLoggerHook, which attaches to the HTTP server and so also catches
+ * requests rejected before the middleware chain runs. This is for Express or
+ * Fastify applications wiring it up themselves. Using both would log twice.
  *
  * Logging on `finish` rather than in the response pipeline means the record
  * carries the status actually sent and the body ResponseBodyInterceptor stored,

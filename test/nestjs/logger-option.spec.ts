@@ -152,6 +152,38 @@ describe.each([
     expect(entries).toEqual([]);
   });
 
+  /**
+   * Regression guard. Logging from MiddlewareConsumer misses this entirely:
+   * the body parser rejects the payload and responds 400 before any middleware
+   * runs, so the request never reaches the log.
+   */
+  it('logs a request whose body the parser rejected', async () => {
+    const { logger, entries } = make();
+    const app = await boot(logger);
+
+    const res = await request(app.getHttpServer())
+      .post('/orders')
+      .set('content-type', 'application/json')
+      .send('{"broken":');
+    await app.close();
+
+    expect(res.status).toBe(400);
+    expect(entries).toHaveLength(1);
+    // Asserted on the record rather than the message, which differs per logger.
+    expect((entries[0] as { res: { statusCode: number } }).res.statusCode).toBe(400);
+  });
+
+  it('logs each request exactly once', async () => {
+    const { logger, entries } = make();
+    const app = await boot(logger);
+
+    await request(app.getHttpServer()).post('/orders').send({ item: 'a' });
+    await request(app.getHttpServer()).post('/orders').send({ item: 'b' });
+    await app.close();
+
+    expect(entries).toHaveLength(2);
+  });
+
   it('echoes the correlation id back on the response', async () => {
     const { logger } = make();
     const app = await boot(logger);
@@ -186,6 +218,54 @@ describe('ObservabilityModule.forRoot({ logger }) level mapping', () => {
 
     // bunyan records levels numerically; 50 is error.
     expect((entries[0] as { level: number }).level).toBe(50);
+  });
+});
+
+/**
+ * The server hook and the interceptor do different jobs. The hook sees req and
+ * res, so it can log every request; it cannot see what a handler returned,
+ * because that value has not been serialized yet. Capturing it is the
+ * interceptor's job, and turning the interceptor off costs exactly that.
+ */
+describe('interceptor and server hook responsibilities', () => {
+  const bootWithout = async (logger: ObsLogger) => {
+    @Module({
+      imports: [
+        ObservabilityModule.forRoot({
+          logger,
+          interceptor: false,
+          config: { logging: { httpClient: false }, diagnostics: { level: 'none' } },
+        }),
+      ],
+      controllers: [Routes],
+    })
+    class AppModule {}
+
+    const app = (await Test.createTestingModule({ imports: [AppModule] }).compile())
+      .createNestApplication();
+    await app.init();
+    return app;
+  };
+
+  it('still logs the request without the interceptor', async () => {
+    const { logger, entries } = winstonLogger();
+    const app = await bootWithout(logger);
+
+    await request(app.getHttpServer()).post('/orders').send({ item: 'widget' });
+    await app.close();
+
+    expect(entries).toHaveLength(1);
+    expect((entries[0] as { res: { statusCode: number } }).res.statusCode).toBe(201);
+  });
+
+  it('loses the response body without the interceptor', async () => {
+    const { logger, entries } = winstonLogger();
+    const app = await bootWithout(logger);
+
+    await request(app.getHttpServer()).post('/orders').send({ item: 'widget' });
+    await app.close();
+
+    expect((entries[0] as { res: { body?: string } }).res.body).toBeUndefined();
   });
 });
 
