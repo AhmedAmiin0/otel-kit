@@ -1,4 +1,4 @@
-import { deepMerge } from './merge';
+import { deepMerge } from '../../../src/core/config/merge';
 
 describe('deepMerge', () => {
   it('preserves sibling keys the override does not mention', () => {

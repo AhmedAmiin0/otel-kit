@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { sanitizeHeaders, httpLogLevel } from './serializers';
+import { sanitizeHeaders, httpLogLevel } from '../../../src/core/redaction/serializers';
 
 describe('sanitizeHeaders', () => {
   it('masks known sensitive headers case-insensitively', () => {

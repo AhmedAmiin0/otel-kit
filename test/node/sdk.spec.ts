@@ -1,6 +1,6 @@
-import { createSdk } from './sdk';
-import { defineConfig } from '../core/config/define-config';
-import type { ObservabilityConfigInput } from '../core/config/types';
+import { createSdk } from '../../src/node/sdk';
+import { defineConfig } from '../../src/core/config/define-config';
+import type { ObservabilityConfigInput } from '../../src/core/config/types';
 
 /** Console traces, no metrics, no logs — needs no collector and no extra packages. */
 const quiet = (extra: ObservabilityConfigInput = {}): ObservabilityConfigInput => ({

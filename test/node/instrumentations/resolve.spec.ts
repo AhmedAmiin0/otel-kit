@@ -1,6 +1,6 @@
-import { resolveInstrumentations, type ResolverDeps } from './resolve';
-import type { InstrumentationDescriptor } from './types';
-import type { Diagnostics } from '../../core/diagnostics';
+import { resolveInstrumentations, type ResolverDeps } from '../../../src/node/instrumentations/resolve';
+import type { InstrumentationDescriptor } from '../../../src/node/instrumentations/types';
+import type { Diagnostics } from '../../../src/core/diagnostics';
 
 class FakeInstrumentation {
   instrumentationName = 'fake';

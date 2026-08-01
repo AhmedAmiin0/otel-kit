@@ -1,10 +1,10 @@
 import { Controller, Get, Module, Post, Body } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { ObservabilityModule } from '../../nestjs/observability.module';
-import { defineConfig } from '../config/define-config';
-import { logRequest } from './request-logger';
-import type { ObsLogger } from './types';
+import { ObservabilityModule } from '../../../src/nestjs/observability.module';
+import { defineConfig } from '../../../src/core/config/define-config';
+import { logRequest } from '../../../src/core/logger/request-logger';
+import type { ObsLogger } from '../../../src/core/logger/types';
 
 /** Stands in for winston, bunyan, or anything else with these four methods. */
 const recordingLogger = () => {

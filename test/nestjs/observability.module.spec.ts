@@ -5,9 +5,9 @@ import type {
   NestInterceptor,
 } from '@nestjs/common';
 import type { Observable } from 'rxjs';
-import { ObservabilityModule } from './observability.module';
+import { ObservabilityModule } from '../../src/nestjs/observability.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { OBSERVABILITY_CONFIG } from './tokens';
+import { OBSERVABILITY_CONFIG } from '../../src/nestjs/tokens';
 
 const importsOf = (mod: DynamicModule): unknown[] => (mod.imports ?? []) as unknown[];
 
@@ -154,7 +154,7 @@ describe('missing nestjs-pino', () => {
       jest.doMock('nestjs-pino', () => {
         throw new Error("Cannot find module 'nestjs-pino'");
       });
-      const mod = require('./observability.module') as typeof import('./observability.module');
+      const mod = require('../../src/nestjs/observability.module') as typeof import('../../src/nestjs/observability.module');
       mod.ObservabilityModule.forRoot(options as never);
     });
 
@@ -178,7 +178,7 @@ describe('missing nestjs-pino', () => {
       jest.doMock('nestjs-pino', () => {
         throw new Error("Cannot find module 'nestjs-pino'");
       });
-      const mod = require('./observability.module') as typeof import('./observability.module');
+      const mod = require('../../src/nestjs/observability.module') as typeof import('../../src/nestjs/observability.module');
       const built = mod.ObservabilityModule.forRoot(quiet as never);
       expect(built.imports ?? []).toEqual([]);
     });

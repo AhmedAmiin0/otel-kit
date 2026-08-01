@@ -1,5 +1,5 @@
-import { createConsoleLogger } from './console';
-import { noopLogger } from './noop';
+import { createConsoleLogger } from '../../../src/core/logger/console';
+import { noopLogger } from '../../../src/core/logger/noop';
 
 describe('noopLogger', () => {
   it('accepts every method without throwing', () => {

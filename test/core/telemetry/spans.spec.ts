@@ -5,8 +5,8 @@ import {
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
-import { withSpan, getRequestContext } from './spans';
-import { resetTelemetryHandles } from './handles';
+import { withSpan, getRequestContext } from '../../../src/core/telemetry/spans';
+import { resetTelemetryHandles } from '../../../src/core/telemetry/handles';
 
 const exporter = new InMemorySpanExporter();
 

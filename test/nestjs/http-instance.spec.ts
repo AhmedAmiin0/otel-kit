@@ -1,7 +1,7 @@
 import { Module, Injectable } from '@nestjs/common';
 import { HttpModule, HttpService } from '@nestjs/axios';
 import { Test } from '@nestjs/testing';
-import { ObservabilityModule } from './observability.module';
+import { ObservabilityModule } from '../../src/nestjs/observability.module';
 
 @Injectable()
 class Caller {

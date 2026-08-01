@@ -1,5 +1,5 @@
-import { redactBody, serializeBody, redactAndSerialize } from './redact';
-import type { RedactionConfig } from '../config/types';
+import { redactBody, serializeBody, redactAndSerialize } from '../../../src/core/redaction/redact';
+import type { RedactionConfig } from '../../../src/core/config/types';
 
 const redaction: RedactionConfig = {
   keys: new Set(['password', 'token']),

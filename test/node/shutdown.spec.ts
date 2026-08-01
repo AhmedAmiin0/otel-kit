@@ -1,5 +1,5 @@
-import { registerShutdownHooks } from './shutdown';
-import { createDiagnostics } from '../core/diagnostics';
+import { registerShutdownHooks } from '../../src/node/shutdown';
+import { createDiagnostics } from '../../src/core/diagnostics';
 
 const diag = createDiagnostics('none');
 

@@ -1,5 +1,5 @@
-import { defaultCatalog } from './catalog';
-import { defineConfig } from '../../core/config/define-config';
+import { defaultCatalog } from '../../../src/node/instrumentations/catalog';
+import { defineConfig } from '../../../src/core/config/define-config';
 
 const cfg = defineConfig({}, {});
 

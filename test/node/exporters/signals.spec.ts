@@ -1,5 +1,5 @@
-import { resolveTraceExporters, resolveLogExporters, type ExporterDeps } from './signals';
-import { createDiagnostics } from '../../core/diagnostics';
+import { resolveTraceExporters, resolveLogExporters, type ExporterDeps } from '../../../src/node/exporters/signals';
+import { createDiagnostics } from '../../../src/core/diagnostics';
 
 const diag = createDiagnostics('none');
 

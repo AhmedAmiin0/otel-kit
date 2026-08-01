@@ -1,9 +1,9 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { ObservabilityModule } from './observability.module';
-import { OBSERVABILITY_CONFIG } from './tokens';
-import { TelemetryService } from './telemetry.service';
+import { ObservabilityModule } from '../../src/nestjs/observability.module';
+import { OBSERVABILITY_CONFIG } from '../../src/nestjs/tokens';
+import { TelemetryService } from '../../src/nestjs/telemetry.service';
 
 @Controller()
 class Routes {

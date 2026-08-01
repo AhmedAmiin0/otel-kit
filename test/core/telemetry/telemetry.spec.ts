@@ -1,7 +1,7 @@
 import { metrics } from '@opentelemetry/api';
 import { MeterProvider } from '@opentelemetry/sdk-metrics';
-import { Telemetry } from './telemetry';
-import { resetTelemetryHandles } from './handles';
+import { Telemetry } from '../../../src/core/telemetry/telemetry';
+import { resetTelemetryHandles } from '../../../src/core/telemetry/handles';
 
 // A real MeterProvider is required for these assertions to mean anything:
 // the default NoopMeter returns one shared singleton from createCounter

@@ -1,4 +1,4 @@
-import * as core from './index';
+import * as core from '../../src/core/index';
 
 const EXPECTED_EXPORTS = [
   'defineConfig',

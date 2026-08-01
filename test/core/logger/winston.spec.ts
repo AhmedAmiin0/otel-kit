@@ -3,11 +3,11 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import winston from 'winston';
 import Transport from 'winston-transport';
-import { ObservabilityModule } from '../../nestjs/observability.module';
-import { defineConfig } from '../config/define-config';
-import { logRequest } from './request-logger';
+import { ObservabilityModule } from '../../../src/nestjs/observability.module';
+import { defineConfig } from '../../../src/core/config/define-config';
+import { logRequest } from '../../../src/core/logger/request-logger';
 // The shipped binding, so this exercises what consumers actually get.
-import { createWinstonLogger } from '../../winston/logger';
+import { createWinstonLogger } from '../../../src/winston/logger';
 
 /** Captures what winston actually emitted, after its own formatting. */
 class CapturingTransport extends Transport {

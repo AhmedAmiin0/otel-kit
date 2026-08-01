@@ -1,5 +1,5 @@
-import { mergeInstrumentations } from './merge';
-import type { InstrumentationDescriptor } from './types';
+import { mergeInstrumentations } from '../../../src/node/instrumentations/merge';
+import type { InstrumentationDescriptor } from '../../../src/node/instrumentations/types';
 
 const catalog: InstrumentationDescriptor[] = [
   { name: 'http', module: '@opentelemetry/instrumentation-http', config: { a: 1 } },

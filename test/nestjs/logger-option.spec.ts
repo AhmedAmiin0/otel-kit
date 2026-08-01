@@ -4,11 +4,11 @@ import bunyan from 'bunyan';
 import request from 'supertest';
 import winston from 'winston';
 import Transport from 'winston-transport';
-import { fromObjectFirst } from '../core/logger/adapt';
-import type { ObsLogger } from '../core/logger/types';
-import { createWinstonLogger } from '../winston/logger';
-import { ObservabilityModule } from './observability.module';
-import { OBSERVABILITY_LOGGER } from './tokens';
+import { fromObjectFirst } from '../../src/core/logger/adapt';
+import type { ObsLogger } from '../../src/core/logger/types';
+import { createWinstonLogger } from '../../src/winston/logger';
+import { ObservabilityModule } from '../../src/nestjs/observability.module';
+import { OBSERVABILITY_LOGGER } from '../../src/nestjs/tokens';
 
 type Entry = Record<string, unknown>;
 

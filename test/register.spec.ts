@@ -16,11 +16,11 @@ describe('register entry', () => {
   });
 
   it('starts without throwing when no collector is running', () => {
-    expect(() => require('./register')).not.toThrow();
+    expect(() => require('../src/register')).not.toThrow();
   });
 
   it('exposes the started handle', () => {
-    const mod = require('./register') as { handle: { sdk: unknown } };
+    const mod = require('../src/register') as { handle: { sdk: unknown } };
     expect(mod.handle.sdk).toBeDefined();
   });
 
@@ -28,7 +28,7 @@ describe('register entry', () => {
   // executable form of that rule, replacing require('dotenv').config() at
   // src/bootstrap.ts:1.
   it('does not load dotenv', () => {
-    require('./register');
+    require('../src/register');
     const loaded = Object.keys(require.cache).map((p) => p.replace(/\\/g, '/'));
     expect(loaded.length).toBeGreaterThan(0);
     expect(loaded.filter((p) => p.includes('node_modules/dotenv/'))).toEqual([]);

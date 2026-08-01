@@ -1,4 +1,4 @@
-import { defineConfig } from './define-config';
+import { defineConfig } from '../../../src/core/config/define-config';
 
 describe('defineConfig', () => {
   it('produces a usable config from an empty environment', () => {

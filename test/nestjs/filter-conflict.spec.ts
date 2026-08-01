@@ -9,7 +9,7 @@ import {
 import { APP_FILTER } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { ObservabilityModule } from './observability.module';
+import { ObservabilityModule } from '../../src/nestjs/observability.module';
 
 /** A consumer's own global error handler, of the kind every real app has. */
 @Catch()

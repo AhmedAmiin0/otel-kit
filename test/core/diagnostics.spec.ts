@@ -1,4 +1,4 @@
-import { createDiagnostics } from './diagnostics';
+import { createDiagnostics } from '../../src/core/diagnostics';
 
 const sink = () => {
   const calls: Array<[string, string]> = [];

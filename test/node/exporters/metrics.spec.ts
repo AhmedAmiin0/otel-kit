@@ -1,6 +1,6 @@
-import { resolveMetricReaders } from './metrics';
-import { createDiagnostics } from '../../core/diagnostics';
-import type { ExporterDeps } from './signals';
+import { resolveMetricReaders } from '../../../src/node/exporters/metrics';
+import { createDiagnostics } from '../../../src/core/diagnostics';
+import type { ExporterDeps } from '../../../src/node/exporters/signals';
 
 const diag = createDiagnostics('none');
 

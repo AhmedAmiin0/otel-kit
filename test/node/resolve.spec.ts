@@ -1,8 +1,8 @@
 import { join } from 'node:path';
-import { resolutionPaths, canResolve, requireOptional } from './resolve';
+import { resolutionPaths, canResolve, requireOptional } from '../../src/node/resolve';
 
 /** Stands in for "a dependency the consuming app has but the library does not". */
-const APP = join(__dirname, '..', '..', 'test', 'fixtures', 'app');
+const APP = join(__dirname, '..', 'fixtures', 'app');
 
 describe('resolutionPaths', () => {
   it('includes the current working directory', () => {

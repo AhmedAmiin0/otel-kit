@@ -2,7 +2,7 @@ import bunyan from 'bunyan';
 import log4js from 'log4js';
 import winston from 'winston';
 import Transport from 'winston-transport';
-import { fromMessageFirst, fromObjectFirst } from './adapt';
+import { fromMessageFirst, fromObjectFirst } from '../../../src/core/logger/adapt';
 
 describe('fromObjectFirst with real bunyan', () => {
   const setup = () => {
