@@ -267,6 +267,23 @@ describe('interceptor and server hook responsibilities', () => {
 
     expect((entries[0] as { res: { body?: string } }).res.body).toBeUndefined();
   });
+
+  /** The request body comes off req, which the parser filled in; not from capture. */
+  it('keeps the request body, redaction included, without the interceptor', async () => {
+    const { logger, entries } = winstonLogger();
+    const app = await bootWithout(logger);
+
+    await request(app.getHttpServer())
+      .post('/orders')
+      .set('authorization', 'Bearer secret-token')
+      .send({ item: 'widget', password: 'hunter2' });
+    await app.close();
+
+    const body = String((entries[0] as { req: { body?: string } }).req.body);
+    expect(body).toContain('widget');
+    expect(body).not.toContain('hunter2');
+    expect(JSON.stringify(entries[0])).not.toContain('secret-token');
+  });
 });
 
 describe('ObservabilityModule.forRootAsync({ logger })', () => {
