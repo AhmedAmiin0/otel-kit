@@ -1,9 +1,15 @@
 import { NestFactory } from '@nestjs/core';
+import { startObservability } from 'otel-kit/node';
 import { AppModule } from './app.module';
+import { observability } from './observability.config';
 
 const PORT = Number(process.env.PORT ?? 3000);
 
 const bootstrap = async (): Promise<void> => {
+  // Synchronous, and it registers its own shutdown hooks, so there is nothing
+  // to await here and nothing to tear down by hand.
+  startObservability(observability);
+
   const app = await NestFactory.create(AppModule);
   await app.listen(PORT);
 

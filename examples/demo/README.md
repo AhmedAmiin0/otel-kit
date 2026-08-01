@@ -66,52 +66,68 @@ duration: 569465.6
 **The startup diagnostics**, at `debug`, showing runtime instrumentation resolution:
 
 ```
-[observability] skip http: install @opentelemetry/instrumentation-http to enable it
-[observability] skip express: install @opentelemetry/instrumentation-express to enable it
+[observability] enabled http via @opentelemetry/instrumentation-http
+[observability] enabled express via @opentelemetry/instrumentation-express
+[observability] skip nestjs: install @opentelemetry/instrumentation-nestjs-core to enable it
 [observability] skip kafkajs: kafkajs is not installed
 [observability] exporter console ready
 ```
 
-Two different reasons: the first two are packages you could install and haven't,
-the third is for a library this app does not use. Nothing fails either way.
+Three outcomes, no configuration behind any of them. `http` and `express` are
+enabled because those packages are installed here. `nestjs` is skipped because
+its instrumentation is not installed, and says how to change that. `kafkajs` is
+skipped because the application does not use kafkajs at all, so there would be
+nothing to instrument. Nothing fails in any case.
 
-For full HTTP and Nest spans, install the instrumentation and restart — the
-catalog picks them up with no config change:
-
-```bash
-npm i @opentelemetry/instrumentation-http @opentelemetry/instrumentation-express \
-      @opentelemetry/instrumentation-nestjs-core
-```
+Install `@opentelemetry/instrumentation-nestjs-core` and restart to see the
+first kind flip to the second — the catalog picks it up with no config change.
 
 ## Notes on the wiring
 
 | File | Role |
 | --- | --- |
 | `observability.config.ts` | The config, written once |
-| `tracing.ts` | Preload; starts the SDK |
-| `main.ts` | An ordinary Nest bootstrap |
+| `main.ts` | Starts the SDK, then boots Nest |
 | `app.module.ts` | `ObservabilityModule.forRoot({ logger, config })` |
 
-The SDK starts from a preload rather than from `main.ts`:
+`startObservability()` is called first thing in `bootstrap()`. It is synchronous
+and registers its own shutdown hooks, so there is nothing to await and nothing to
+flush by hand.
+
+Both that call and the Nest module take the same `observability` object, so the
+service name, exporters and redaction rules cannot drift apart.
+
+### On start order
+
+Instrumentation works by hooking `require`, so the usual advice is to start the
+SDK from a preload, before anything pulls in http or express:
 
 ```bash
-node -r ./out/tracing.js ./out/main.js
+node -r otel-kit/register ./out/main.js     # config from the environment
 ```
 
-Instrumentation patches modules as they are required, so it has to run before
-anything pulls in http, express or Nest. Calling `startObservability()` at the
-top of `main.ts` does not guarantee that — static imports are hoisted above every
-statement in the file, so the app would already be loaded by the time the call
-ran. A preload is the only ordering the runtime actually guarantees, which is why
-`main.ts` here is a plain bootstrap with nothing observability-specific in it.
+Starting it inside `bootstrap()` instead was measured against that, with
+`instrumentation-http` and `instrumentation-express` installed and one POST to
+`/posts`. Both produce the same five spans:
 
-`node -r otel-kit/register` is the same mechanism with the config read from the
-environment (`OTEL_TRACES_EXPORTER`, `OTEL_SERVICE_NAME`, and so on) instead of
-written in a file. Use whichever suits; this demo writes it in a file so it runs
-the same on every platform.
+```
+POST /posts                      (http server)
+request handler - /posts         (express)
+request handler - {/*splat}      (express)
+posts.publish                    (manual)
+POST                             (http client, outbound)
+```
 
-Both the preload and the Nest module take the same `observability` object, so the
-service name, exporters and redaction rules cannot drift apart.
+It holds even with `import 'express'` above the call. The hook intercepts
+`Module._load`, which runs again on a cache hit, so a module required a second
+time after the SDK starts still gets patched — and Nest requires its HTTP
+platform lazily inside `NestFactory.create()`, which is after.
+
+What that depends on is the application's load order rather than anything the SDK
+controls, and OpenTelemetry does warn when a target module was loaded first
+(`Module X has been loaded before Y so it might not work`). A preload does not
+depend on it. For an app this size the difference is not observable; for one that
+touches http at import time and never again, prefer the preload.
 
 Imports read `otel-kit/nestjs` rather than relative paths, so this is the code a
 consumer would write. Node resolves it through the package's own exports map;
