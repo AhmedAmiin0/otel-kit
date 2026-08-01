@@ -142,8 +142,54 @@ export class AppModule {}
 `TelemetryService` is then injectable everywhere. `forRootAsync` is available if you build the
 config from `ConfigService` or another async source.
 
-Request logging uses pino when `nestjs-pino` is installed and is skipped when it isn't. To use the
-logger:
+#### Request logging
+
+Hand `logger` any logger instance and the module wires the request middleware itself. Nothing here
+is pino-specific:
+
+```ts
+import winston from 'winston';
+import { createWinstonLogger } from 'otel-kit/winston';
+
+ObservabilityModule.forRoot({
+  logger: createWinstonLogger(
+    winston.createLogger({
+      level: 'info',
+      format: winston.format.json(),
+      transports: [new winston.transports.Console()],
+    }),
+  ),
+});
+```
+
+That produces the full record — redacted request and response bodies, sanitized headers, correlation
+id echoed onto the response, and `4xx → warn` / `5xx → error` levels — for winston, bunyan, log4js or
+anything else you adapt. It works the same on `forRootAsync`, where the middleware picks up whatever
+config your factory returned. The logger is also exported under `OBSERVABILITY_LOGGER` if you want to
+inject it elsewhere.
+
+The other forms `logger` accepts:
+
+```ts
+// omitted: nestjs-pino if it is installed, otherwise nothing (with a diagnostic)
+ObservabilityModule.forRoot({});
+
+// a function tweaks the generated pino config
+ObservabilityModule.forRoot({
+  logger: (defaults) => ({
+    ...defaults,
+    pinoHttp: { ...defaults.pinoHttp, level: 'debug', transport: myTransport },
+  }),
+});
+
+// a module is registered instead, for logging you wire up entirely yourself
+ObservabilityModule.forRoot({ logger: WinstonModule.forRoot(myOptions) });
+
+// no request logging; tracing and metrics still work
+ObservabilityModule.forRoot({ logger: false });
+```
+
+To route Nest's own `Logger` through pino as well:
 
 ```ts
 import { useObservabilityLogger } from 'otel-kit/pino';
@@ -152,45 +198,15 @@ const app = await NestFactory.create(AppModule, { bufferLogs: true });
 useObservabilityLogger(app);
 ```
 
-The built-in pino wiring is a default, not a requirement. Adjust it, replace it, or turn it off:
-
-```ts
-// tweak the generated config — you get the defaults and return what you want
-ObservabilityModule.forRoot({
-  logger: (defaults) => ({
-    ...defaults,
-    pinoHttp: { ...defaults.pinoHttp, level: 'debug', transport: myTransport },
-  }),
-});
-
-// bring a different logger entirely
-ObservabilityModule.forRoot({ logger: WinstonModule.forRoot(myOptions) });
-
-// no request logging; tracing and metrics still work
-ObservabilityModule.forRoot({ logger: false });
-```
-
 ### Using a different logger
 
-pino is a convenience, not a requirement. Everything that builds a log record lives in
-`otel-kit/core` and depends on nothing but Node's `http` types, so winston, bunyan, or your own
-wrapper get the same redaction, body capture, and level mapping.
-
-winston has a binding of its own:
+Everything that builds a log record lives in `otel-kit/core` and depends on nothing but Node's
+`http` types. Outside Nest, drive it yourself:
 
 ```ts
-import winston from 'winston';
-import { createWinstonLogger } from 'otel-kit/winston';
 import { logRequest, defineConfig } from 'otel-kit/core';
 
 const config = defineConfig();
-const logger = createWinstonLogger(
-  winston.createLogger({
-    level: 'info',
-    format: winston.format.json(),
-    transports: [new winston.transports.Console()],
-  }),
-);
 
 app.use((req, res, next) => {
   res.on('finish', () => logRequest(logger, req, res, config));
@@ -198,7 +214,7 @@ app.use((req, res, next) => {
 });
 ```
 
-Every other Node logger follows one of two argument conventions, and there is an adapter for each:
+Node loggers follow one of two argument conventions, and there is an adapter for each:
 
 ```ts
 import { fromMessageFirst, fromObjectFirst } from 'otel-kit/core';
@@ -218,9 +234,8 @@ fromObjectFirst(bunyanLogger);    // info(obj, msg)      — bunyan, pino
 `fromMessageFirst` merges child bindings on its own rather than delegating, so `logger.child({ svc })`
 works even against loggers with no child concept.
 
-That gives you the same records pino produces: redacted request and response bodies, sanitized
-headers, correlation id, and `4xx → warn` / `5xx → error` levels. Excluded routes and `3xx` are
-skipped for you.
+The result of either adapter goes straight into `ObservabilityModule.forRoot({ logger })`. Excluded
+routes and `3xx` responses are skipped for you.
 
 If you want the pieces rather than the whole record, they compose individually:
 

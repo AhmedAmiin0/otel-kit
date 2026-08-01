@@ -1,8 +1,13 @@
 import {
   Global,
+  Inject,
   Module,
+  Optional,
+  RequestMethod,
   type DynamicModule,
+  type MiddlewareConsumer,
   type NestInterceptor,
+  type NestModule,
   type Provider,
   type Type,
 } from '@nestjs/common';
@@ -10,15 +15,30 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { defineConfig } from '../core/config/define-config';
 import { createDiagnostics } from '../core/diagnostics';
 import type { ObservabilityConfig, ObservabilityConfigInput } from '../core/config/types';
-import { OBSERVABILITY_CONFIG } from './tokens';
+import type { ObsLogger } from '../core/logger/types';
+import { OBSERVABILITY_CONFIG, OBSERVABILITY_LOGGER } from './tokens';
+import { requestLoggerMiddleware } from './request-logger.middleware';
 import { ResponseBodyInterceptor } from './response-body.interceptor';
 import { TelemetryService } from './telemetry.service';
 
 /** Structural stand-in for nestjs-pino's Params, so this file needs no pino types. */
 export type PinoParams = Record<string, unknown>;
 
-/** `false` for none, a function to adjust the built-in config, or a module to use instead. */
-export type LoggerOption = false | ((defaults: PinoParams) => PinoParams) | DynamicModule;
+/**
+ * How requests get logged.
+ *
+ * - omitted: nestjs-pino when it is installed, nothing otherwise
+ * - `false`: no request logging
+ * - an ObsLogger: winston, bunyan, log4js or anything else, adapted through
+ *   `fromMessageFirst` / `fromObjectFirst` and driven by a middleware here
+ * - a function: adjusts the built-in pino config
+ * - a module: registered instead, for logging wired up entirely by the caller
+ */
+export type LoggerOption =
+  | false
+  | ObsLogger
+  | ((defaults: PinoParams) => PinoParams)
+  | DynamicModule;
 
 /**
  * How the request-path interceptor is registered.
@@ -36,12 +56,12 @@ interface ProviderOptions {
    * route on errors. Body capture itself still follows `logging.responseBody`.
    */
   interceptor?: InterceptorOption;
+  logger?: LoggerOption;
 }
 
 export interface ObservabilityModuleOptions extends ProviderOptions {
   global?: boolean;
   config?: ObservabilityConfigInput;
-  logger?: LoggerOption;
 }
 
 export interface ObservabilityModuleAsyncOptions extends ProviderOptions {
@@ -63,12 +83,17 @@ const loadOptional = <T>(id: string): T | undefined => {
 const isDynamicModule = (value: unknown): value is DynamicModule =>
   typeof value === 'object' && value !== null && 'module' in value;
 
+/** A logger instance, as opposed to a module or a config customizer. */
+const isObsLogger = (value: unknown): value is ObsLogger =>
+  typeof value === 'object' && value !== null && typeof (value as ObsLogger).info === 'function';
+
 /** pino is loaded here, not imported, so it stays out of the required dependency tree. */
 const loggerImports = (
   config: ObservabilityConfig,
   logger: LoggerOption | undefined,
 ): NonNullable<DynamicModule['imports']> => {
-  if (logger === false) return [];
+  // A supplied logger needs no module: the middleware below writes to it.
+  if (logger === false || isObsLogger(logger)) return [];
   if (isDynamicModule(logger)) return [logger];
 
   const pino = loadOptional<typeof import('nestjs-pino')>('nestjs-pino');
@@ -123,6 +148,10 @@ const interceptorProvider = (interceptor: InterceptorOption | undefined): Provid
     : [interceptor];
 };
 
+/** Publishes a supplied logger so the middleware and consumers can reach it. */
+const loggerProvider = (logger: LoggerOption | undefined): Provider[] =>
+  isObsLogger(logger) ? [{ provide: OBSERVABILITY_LOGGER, useValue: logger }] : [];
+
 /** Every provider the module contributes, in one place. */
 const registerProviders = (
   configProvider: Provider,
@@ -130,21 +159,49 @@ const registerProviders = (
   options: ProviderOptions,
 ): Pick<DynamicModule, 'providers' | 'exports'> => {
   const httpClient = httpClientProvider(config);
+  const logger = loggerProvider(options.logger);
 
   return {
     providers: [
       configProvider,
       TelemetryService,
+      ...logger,
       ...interceptorProvider(options.interceptor),
       ...httpClient,
     ],
-    exports: [OBSERVABILITY_CONFIG, TelemetryService, ...httpClient],
+    // Tokens, not the provider objects, so consumers can inject them.
+    exports: [
+      OBSERVABILITY_CONFIG,
+      TelemetryService,
+      ...logger.map(() => OBSERVABILITY_LOGGER),
+      ...httpClient,
+    ],
   };
 };
 
 @Global()
 @Module({})
-export class ObservabilityModule {
+export class ObservabilityModule implements NestModule {
+  constructor(
+    @Inject(OBSERVABILITY_CONFIG) private readonly config: ObservabilityConfig,
+    @Optional() @Inject(OBSERVABILITY_LOGGER) private readonly logger?: ObsLogger,
+  ) {}
+
+  /**
+   * Applied only when a logger instance was supplied. The nestjs-pino path
+   * brings its own middleware, and `logger: false` gets none at all.
+   *
+   * Config is injected rather than captured in forRoot so that forRootAsync,
+   * whose config is not known until its factory runs, logs the real thing.
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    if (!this.logger) return;
+
+    consumer
+      .apply(requestLoggerMiddleware(this.logger, this.config))
+      .forRoutes({ path: '{/*splat}', method: RequestMethod.ALL });
+  }
+
   static forRoot(options: ObservabilityModuleOptions = {}): DynamicModule {
     const config = defineConfig(options.config ?? {});
     const { providers, exports } = registerProviders(
