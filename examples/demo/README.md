@@ -85,12 +85,35 @@ npm i @opentelemetry/instrumentation-http @opentelemetry/instrumentation-express
 
 ## Notes on the wiring
 
-`main.ts` calls `startObservability()` before the app loads and uses dynamic
-imports underneath, because static imports are hoisted and instrumentation has to
-patch modules on their way in. `node -r otel-kit/register` does the same from the
-command line, taking its config from the environment instead.
+| File | Role |
+| --- | --- |
+| `observability.config.ts` | The config, written once |
+| `tracing.ts` | Preload; starts the SDK |
+| `main.ts` | An ordinary Nest bootstrap |
+| `app.module.ts` | `ObservabilityModule.forRoot({ logger, config })` |
 
-Imports here read `otel-kit/nestjs` rather than relative paths, so this is the
-same code a consumer would write. Node resolves it through the package's own
-exports map; `tsconfig.json` maps the subpaths for the compiler, which cannot
-follow that map under `moduleResolution: node10`.
+The SDK starts from a preload rather than from `main.ts`:
+
+```bash
+node -r ./out/tracing.js ./out/main.js
+```
+
+Instrumentation patches modules as they are required, so it has to run before
+anything pulls in http, express or Nest. Calling `startObservability()` at the
+top of `main.ts` does not guarantee that — static imports are hoisted above every
+statement in the file, so the app would already be loaded by the time the call
+ran. A preload is the only ordering the runtime actually guarantees, which is why
+`main.ts` here is a plain bootstrap with nothing observability-specific in it.
+
+`node -r otel-kit/register` is the same mechanism with the config read from the
+environment (`OTEL_TRACES_EXPORTER`, `OTEL_SERVICE_NAME`, and so on) instead of
+written in a file. Use whichever suits; this demo writes it in a file so it runs
+the same on every platform.
+
+Both the preload and the Nest module take the same `observability` object, so the
+service name, exporters and redaction rules cannot drift apart.
+
+Imports read `otel-kit/nestjs` rather than relative paths, so this is the code a
+consumer would write. Node resolves it through the package's own exports map;
+`tsconfig.json` maps the subpaths for the compiler, which cannot follow that map
+under `moduleResolution: node10`.

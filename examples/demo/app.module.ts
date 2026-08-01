@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ObservabilityModule } from 'otel-kit/nestjs';
 import { createWinstonLogger } from 'otel-kit/winston';
 import winston from 'winston';
+import { observability } from './observability.config';
 import { PostsController } from './posts.controller';
 import { PostsService } from './posts.service';
 
@@ -20,18 +21,8 @@ const logger = createWinstonLogger(
     // Importing HttpModule anywhere is enough: HttpClientLogger finds whichever
     // HttpService the application actually uses and patches that one.
     HttpModule,
-    ObservabilityModule.forRoot({
-      logger,
-      config: {
-        service: { name: 'otel-kit-demo', version: '0.1.0' },
-        // Console keeps the demo runnable with no collector listening.
-        traces: { exporter: 'console' },
-        metrics: { exporter: 'none' },
-        logs: { exporter: 'none' },
-        // Shows which instrumentations were found and which were skipped.
-        diagnostics: { level: 'debug' },
-      },
-    }),
+    // The same object the preload started the SDK with.
+    ObservabilityModule.forRoot({ logger, config: observability }),
   ],
   controllers: [PostsController],
   providers: [PostsService],
