@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./out",
+    "types": ["node"],
+    "composite": false,
+    "declaration": false,
+    // moduleResolution node10 cannot read the package's own exports map, so the
+    // subpaths are mapped by hand. At runtime Node resolves them by itself,
+    // through the self-reference the exports field enables.
+    "baseUrl": ".",
+    "paths": {
+      "otel-kit": ["../../dist/index.d.ts"],
+      "otel-kit/*": ["../../dist/*/index.d.ts", "../../dist/*.d.ts"]
+    }
+  },
+  "include": ["./*.ts"]
+}

@@ -103,6 +103,7 @@
     "test:watch": "jest --watch",
     "typecheck": "tsc -b tsconfig.lib.json --dry",
     "build:clean": "tsc -b tsconfig.lib.json --force",
+    "demo": "npm run build && tsc -p examples/demo/tsconfig.json && node examples/demo/out/main.js",
     "prepublishOnly": "npm run build:clean && npm test"
   },
   "dependencies": {
